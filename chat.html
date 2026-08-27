@@ -17,7 +17,7 @@
     <div class="chat-container">
         <!-- القائمة الجانبية -->
         <div class="sidebar">
-            <div class="user-profile">
+            <div class="user-profile" id="userProfile">
                 <div class="menu-dots" onclick="toggleMenu()">⋮</div>
                 <div class="dropdown-menu" id="dropdownMenu">
                     <button onclick="logout()">تسجيل الخروج</button>
@@ -65,6 +65,19 @@
     <!-- نافذة عرض الصورة -->
     <div class="image-viewer" id="imageViewer" onclick="closeImageViewer()">
         <img src="" alt="صورة" id="viewerImage">
+    </div>
+    
+    <!-- نافذة الشاتات المخفية -->
+    <div class="hidden-chats-modal" id="hiddenChatsModal">
+        <div class="hidden-chats-content">
+            <div class="hidden-chats-header">
+                <h3>🔒 الشاتات المخفية</h3>
+                <button class="close-hidden-btn" onclick="closeHiddenChats()">✕</button>
+            </div>
+            <div class="hidden-chats-list" id="hiddenChatsList">
+                <!-- الشاتات المخفية ستظهر هنا -->
+            </div>
+        </div>
     </div>
     
     <!-- نافذة التعديل -->
