@@ -642,7 +642,6 @@ class FirebaseChat {
                     chatItem.dataset.username = username;
                     chatItem.onclick = () => this.selectPartner(user);
                     
-                    // أحداث الإخفاء
                     chatItem.addEventListener('contextmenu', (e) => {
                         this.showChatContextMenu(e, username);
                     });
@@ -702,6 +701,37 @@ class FirebaseChat {
 
 const firebaseChat = new FirebaseChat();
 
+// ============ دوال الثيم ============
+
+// حفظ الثيم في Firebase
+async function saveThemeToFirebase(theme) {
+    try {
+        const currentUser = JSON.parse(localStorage.getItem('fb_chat_current_user'));
+        await db.collection('users').doc(currentUser.username).update({
+            theme: theme
+        });
+        return true;
+    } catch (error) {
+        console.error('خطأ في حفظ الثيم:', error);
+        return false;
+    }
+}
+
+// تحميل الثيم من Firebase
+async function loadThemeFromFirebase() {
+    try {
+        const currentUser = JSON.parse(localStorage.getItem('fb_chat_current_user'));
+        const userDoc = await db.collection('users').doc(currentUser.username).get();
+        if (userDoc.exists && userDoc.data().theme) {
+            return userDoc.data().theme;
+        }
+        return null;
+    } catch (error) {
+        console.error('خطأ في تحميل الثيم:', error);
+        return null;
+    }
+}
+
 // ============ دوال عامة ============
 
 function toggleMenu() {
@@ -756,5 +786,6 @@ document.addEventListener('keydown', function(e) {
         closeEditModal();
         closeImageViewer();
         closeHiddenChats();
+        closeThemeModal();
     }
 });
