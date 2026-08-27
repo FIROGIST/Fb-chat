@@ -13,14 +13,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // عرض الصورة الشخصية
     const currentUsername = currentUser.username.toUpperCase();
     
-    if (currentUser.avatar) {
-        document.getElementById('userAvatar').src = currentUser.avatar;
-    } else if (currentUsername === 'FIROGIST') {
-        // صورتك الخاصة من ملفات الموقع - ظاهرة للكل
+    // الصورة الخاصة بالمطور تظهر دائمًا
+    if (currentUsername === 'FIROGIST') {
         document.getElementById('userAvatar').src = 'images/123456.png';
         document.getElementById('userAvatar').onerror = function() {
             this.src = 'https://via.placeholder.com/50';
         };
+    } else if (currentUser.avatar) {
+        document.getElementById('userAvatar').src = currentUser.avatar;
     } else {
         document.getElementById('userAvatar').src = 'https://via.placeholder.com/50';
     }
