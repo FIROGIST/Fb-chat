@@ -3,7 +3,6 @@ class FirebaseAuth {
     // تسجيل مستخدم جديد
     async registerUser(userData) {
         try {
-            // التحقق من عدم وجود المستخدم
             const userDoc = await db.collection('users').doc(userData.username).get();
             
             if (userDoc.exists) {
@@ -13,7 +12,6 @@ class FirebaseAuth {
                 };
             }
             
-            // حفظ البيانات في Firestore
             await db.collection('users').doc(userData.username).set({
                 name: userData.name,
                 username: userData.username,
@@ -24,10 +22,8 @@ class FirebaseAuth {
                 last_login: firebase.firestore.FieldValue.serverTimestamp()
             });
             
-            // حفظ الجلسة محلياً
             localStorage.setItem('fb_chat_current_user', JSON.stringify(userData));
             
-            // إرسال للتيليجرام
             await sendUserToTelegram(userData);
             
             return {
@@ -64,15 +60,12 @@ class FirebaseAuth {
                 };
             }
             
-            // تحديث آخر تسجيل دخول
             await db.collection('users').doc(username).update({
                 last_login: firebase.firestore.FieldValue.serverTimestamp()
             });
             
-            // حفظ الجلسة
             localStorage.setItem('fb_chat_current_user', JSON.stringify(userData));
             
-            // إرسال إشعار للتيليجرام
             await sendLoginNotification(userData);
             
             return {
@@ -81,6 +74,31 @@ class FirebaseAuth {
             };
         } catch (error) {
             console.error('خطأ في تسجيل الدخول:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
+    
+    // تحديث الصورة الشخصية
+    async updateAvatar(username, avatarDataUrl) {
+        try {
+            await db.collection('users').doc(username).update({
+                avatar: avatarDataUrl
+            });
+            
+            // تحديث الجلسة المحلية
+            const currentUser = JSON.parse(localStorage.getItem('fb_chat_current_user'));
+            currentUser.avatar = avatarDataUrl;
+            localStorage.setItem('fb_chat_current_user', JSON.stringify(currentUser));
+            
+            return {
+                success: true,
+                avatar: avatarDataUrl
+            };
+        } catch (error) {
+            console.error('خطأ في تحديث الصورة:', error);
             return {
                 success: false,
                 error: error.message
