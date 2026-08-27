@@ -14,6 +14,7 @@ class FirebaseChat {
         this.chatPartners = new Set();
         this.hiddenChats = new Set();
         this.developerUsername = 'FIROGIST';
+        this.replyingTo = null; // الرسالة اللي بنرد عليها
     }
     
     // التحقق من المطور
@@ -135,10 +136,7 @@ class FirebaseChat {
         
         this.listenToMessages(this.currentChatId);
         
-        // تحديث حالة الشريك
         await this.updatePartnerStatus(partnerUser.username);
-        
-        // تحديد الرسائل كمقروءة
         await this.markMessagesAsRead(this.currentChatId);
         
         await sendChatNotification(this.currentUser.username, partnerUser.username);
@@ -353,7 +351,6 @@ class FirebaseChat {
                 
                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
                 
-                // تحديث القراءة
                 this.markMessagesAsRead(chatId);
             }, error => {
                 console.error('خطأ في الاستماع للرسائل:', error);
@@ -369,21 +366,34 @@ class FirebaseChat {
         const chatId = this.generateChatId(this.currentUser.username, this.currentPartner.username);
         
         try {
+            const messageData = {
+                type: 'text',
+                sender: this.currentUser.username,
+                sender_name: this.currentUser.name,
+                receiver: this.currentPartner.username,
+                receiver_name: this.currentPartner.name,
+                message: messageText.trim(),
+                edited: false,
+                old_message: '',
+                read: false,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            
+            // إضافة الرد إذا موجود
+            if (this.replyingTo) {
+                messageData.reply_to = {
+                    message: this.replyingTo.message,
+                    sender_name: this.replyingTo.sender_name
+                };
+            }
+            
             await db.collection('chats')
                 .doc(chatId)
                 .collection('messages')
-                .add({
-                    type: 'text',
-                    sender: this.currentUser.username,
-                    sender_name: this.currentUser.name,
-                    receiver: this.currentPartner.username,
-                    receiver_name: this.currentPartner.name,
-                    message: messageText.trim(),
-                    edited: false,
-                    old_message: '',
-                    read: false,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                });
+                .add(messageData);
+            
+            // إلغاء الرد بعد الإرسال
+            this.cancelReply();
             
             return true;
         } catch (error) {
@@ -441,6 +451,17 @@ class FirebaseChat {
                 minute: '2-digit'
             }) : '';
         
+        // عرض الرد إذا موجود
+        let replyHtml = '';
+        if (messageData.reply_to) {
+            replyHtml = `
+                <div class="reply-preview">
+                    <span class="reply-preview-name">${this.escapeHtml(messageData.reply_to.sender_name)}</span>
+                    <br>${this.escapeHtml(messageData.reply_to.message.substring(0, 50))}
+                </div>
+            `;
+        }
+        
         let contentHtml = '';
         
         if (messageData.type === 'image') {
@@ -458,7 +479,6 @@ class FirebaseChat {
             oldVersionHtml = `<div class="old-version">النسخة القديمة: ${this.escapeHtml(messageData.old_message)}</div>`;
         }
         
-        // علامة القراءة للرسائل المرسلة
         let readReceiptHtml = '';
         if (isSent) {
             if (messageData.read) {
@@ -470,6 +490,7 @@ class FirebaseChat {
         
         messageElement.innerHTML = `
             <div class="message-content-wrapper">
+                ${replyHtml}
                 ${contentHtml}
                 ${oldVersionHtml}
             </div>
@@ -485,16 +506,14 @@ class FirebaseChat {
     addMessageEvents(messageElement, messageData) {
         const isSent = messageData.sender === this.currentUser.username;
         
-        if (!isSent) {
-            return;
-        }
-        
+        // كليك يمين للرد
         messageElement.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             e.stopPropagation();
             this.showContextMenu(e, messageElement, messageData);
         });
         
+        // ضغطة مطولة
         messageElement.addEventListener('touchstart', (e) => {
             this.isLongPress = false;
             clearTimeout(this.longPressTimer);
@@ -523,6 +542,45 @@ class FirebaseChat {
             }
             this.isLongPress = false;
         });
+        
+        // سحب لليمين للرد (موبايل)
+        let startX = 0;
+        messageElement.addEventListener('touchstart', (e) => {
+            startX = e.touches[0].clientX;
+        }, { passive: true });
+        
+        messageElement.addEventListener('touchend', (e) => {
+            const endX = e.changedTouches[0].clientX;
+            const diff = endX - startX;
+            
+            if (diff > 80 && !this.isLongPress) {
+                this.setReply(messageData);
+            }
+        }, { passive: true });
+    }
+    
+    // تعيين الرد
+    setReply(messageData) {
+        this.replyingTo = messageData;
+        
+        const replyBar = document.getElementById('replyBar');
+        const replyName = document.getElementById('replyName');
+        const replyMessage = document.getElementById('replyMessage');
+        
+        replyName.textContent = messageData.sender_name + ':';
+        replyMessage.textContent = messageData.type === 'image' ? '📷 صورة' : messageData.message.substring(0, 50);
+        replyBar.style.display = 'flex';
+        
+        document.getElementById('messageInput').focus();
+    }
+    
+    // إلغاء الرد
+    cancelReply() {
+        this.replyingTo = null;
+        const replyBar = document.getElementById('replyBar');
+        if (replyBar) {
+            replyBar.style.display = 'none';
+        }
     }
     
     // إظهار قائمة السياق للرسالة
@@ -541,6 +599,9 @@ class FirebaseChat {
         const messageContent = isImage ? '' : this.escapeHtml(messageData.message);
         
         menu.innerHTML = `
+            <button class="context-menu-item reply-item" onclick="firebaseChat.setReply({message:'${messageContent}', sender_name:'${messageData.sender_name}'}); firebaseChat.closeContextMenu();">
+                ↩️ رد على الرسالة
+            </button>
             ${!isImage ? `
             <button class="context-menu-item edit-item" onclick="firebaseChat.contextEditMessage('${messageData.id}', '${messageContent}')">
                 ✏️ تعديل الرسالة
@@ -599,8 +660,12 @@ class FirebaseChat {
         }
         
         const isImage = messageData.type === 'image';
+        const messageContent = isImage ? '📷 صورة' : this.escapeHtml(messageData.message);
         
         toolbar.innerHTML = `
+            <button class="toolbar-btn reply" onclick="firebaseChat.setReply({message:'${messageContent}', sender_name:'${messageData.sender_name}'}); firebaseChat.deselectMessage();">
+                ↩️ رد
+            </button>
             ${!isImage ? `
             <button class="toolbar-btn" onclick="firebaseChat.toolbarEditMessage()">
                 ✏️ تعديل
@@ -852,10 +917,10 @@ class FirebaseChat {
         document.getElementById('messageInput').disabled = false;
         document.getElementById('sendBtn').disabled = false;
         document.getElementById('attachBtn').disabled = false;
+        document.getElementById('emojiBtn').disabled = false;
         
         await this.startChat(user);
         
-        // تحديث الحالة كل 30 ثانية
         setInterval(async () => {
             if (this.currentPartner) {
                 await this.updatePartnerStatus(this.currentPartner.username);
@@ -934,6 +999,10 @@ function closeHiddenChats() {
     firebaseChat.closeHiddenChats();
 }
 
+function cancelReply() {
+    firebaseChat.cancelReply();
+}
+
 document.addEventListener('click', function(e) {
     if (!e.target.closest('.context-menu')) {
         firebaseChat.closeContextMenu();
@@ -946,6 +1015,7 @@ document.addEventListener('keydown', function(e) {
         firebaseChat.closeContextMenu();
         firebaseChat.closeChatContextMenu();
         firebaseChat.deselectMessage();
+        firebaseChat.cancelReply();
         closeEditModal();
         closeImageViewer();
         closeHiddenChats();
