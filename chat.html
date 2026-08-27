@@ -22,7 +22,13 @@
                 <div class="dropdown-menu" id="dropdownMenu">
                     <button onclick="logout()">تسجيل الخروج</button>
                 </div>
-                <img src="" alt="صورة المستخدم" id="userAvatar">
+                <div class="avatar-wrapper">
+                    <img src="" alt="صورة المستخدم" id="userAvatar">
+                    <button class="edit-avatar-btn" onclick="changeAvatar()" title="تغيير الصورة">
+                        ✏️
+                    </button>
+                </div>
+                <input type="file" id="avatarInput" accept="image/*" style="display: none;" onchange="handleAvatarChange(event)">
                 <h3 id="userName"></h3>
                 <p id="userUsername"></p>
             </div>
