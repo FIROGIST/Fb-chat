@@ -23,6 +23,25 @@ document.addEventListener('DOMContentLoaded', function() {
     // تحميل قائمة المحادثات
     firebaseChat.loadUsers();
     
+    // عداد الضغطات على البروفايل
+    let profileClickCount = 0;
+    let profileClickTimer = null;
+    
+    document.getElementById('userProfile').addEventListener('click', function() {
+        profileClickCount++;
+        
+        clearTimeout(profileClickTimer);
+        
+        profileClickTimer = setTimeout(() => {
+            profileClickCount = 0;
+        }, 2000);
+        
+        if (profileClickCount >= 5) {
+            profileClickCount = 0;
+            firebaseChat.showHiddenChats();
+        }
+    });
+    
     // البحث عن مستخدم جديد
     window.searchUser = async function() {
         const searchInput = document.getElementById('searchUser').value.trim();
@@ -89,13 +108,11 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // التحقق من نوع الملف
         if (!file.type.startsWith('image/')) {
             alert('الرجاء اختيار ملف صورة');
             return;
         }
         
-        // التحقق من الحجم (أقصى 5 ميجابايت)
         if (file.size > 5 * 1024 * 1024) {
             alert('حجم الصورة كبير جداً (الحد الأقصى 5 ميجابايت)');
             return;
@@ -105,19 +122,14 @@ document.addEventListener('DOMContentLoaded', function() {
         
         reader.onload = async function(e) {
             const imageDataUrl = e.target.result;
-            
             const sent = await firebaseChat.sendImage(imageDataUrl);
             
-            if (sent) {
-                console.log('✅ تم إرسال الصورة');
-            } else {
+            if (!sent) {
                 alert('فشل في إرسال الصورة');
             }
         };
         
         reader.readAsDataURL(file);
-        
-        // تنظيف الحقل
         event.target.value = '';
     };
     
@@ -126,13 +138,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             sendMessage();
-        }
-    });
-    
-    // إغلاق نافذة التعديل بالضغط على ESC
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            closeEditModal();
         }
     });
     
@@ -153,7 +158,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }, 30000);
     
-    // تحديث عند العودة للصفحة
     document.addEventListener('visibilitychange', function() {
         if (!document.hidden) {
             firebaseChat.loadUsers();
@@ -161,7 +165,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// تسجيل الخروج
 function logout() {
     if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
         localStorage.removeItem('fb_chat_current_user');
@@ -170,7 +173,6 @@ function logout() {
     }
 }
 
-// إغلاق نافذة التعديل عند النقر خارجها
 document.addEventListener('click', function(e) {
     const editModal = document.getElementById('editModal');
     if (editModal && e.target === editModal) {
