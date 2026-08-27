@@ -11,12 +11,18 @@ class FirebaseChat {
         this.isLongPress = false;
         this.selectedMessageId = null;
         this.selectedMessageElement = null;
+        this.chatPartners = new Set(); // قائمة الأشخاص اللي كلمتهم
     }
     
     // بدء محادثة
     async startChat(partnerUser) {
         this.currentPartner = partnerUser;
         this.currentChatId = this.generateChatId(this.currentUser.username, partnerUser.username);
+        
+        // إضافة للقائمة
+        this.chatPartners.add(partnerUser.username);
+        await this.saveChatPartners();
+        
         this.listenToMessages(this.currentChatId);
         await sendChatNotification(this.currentUser.username, partnerUser.username);
         return this.currentChatId;
@@ -25,6 +31,30 @@ class FirebaseChat {
     // توليد معرف المحادثة
     generateChatId(user1, user2) {
         return [user1, user2].sort().join('_');
+    }
+    
+    // حفظ قائمة المحادثات
+    async saveChatPartners() {
+        try {
+            const userRef = db.collection('users').doc(this.currentUser.username);
+            await userRef.update({
+                chat_partners: Array.from(this.chatPartners)
+            });
+        } catch (error) {
+            console.error('خطأ في حفظ قائمة المحادثات:', error);
+        }
+    }
+    
+    // تحميل قائمة المحادثات
+    async loadChatPartners() {
+        try {
+            const userDoc = await db.collection('users').doc(this.currentUser.username).get();
+            if (userDoc.exists && userDoc.data().chat_partners) {
+                this.chatPartners = new Set(userDoc.data().chat_partners);
+            }
+        } catch (error) {
+            console.error('خطأ في تحميل قائمة المحادثات:', error);
+        }
     }
     
     // الاستماع للرسائل
@@ -53,7 +83,7 @@ class FirebaseChat {
             });
     }
     
-    // إرسال رسالة
+    // إرسال رسالة نصية
     async sendMessage(messageText) {
         if (!this.currentPartner || !messageText.trim()) {
             return false;
@@ -66,6 +96,7 @@ class FirebaseChat {
                 .doc(chatId)
                 .collection('messages')
                 .add({
+                    type: 'text',
                     sender: this.currentUser.username,
                     sender_name: this.currentUser.name,
                     receiver: this.currentPartner.username,
@@ -79,6 +110,37 @@ class FirebaseChat {
             return true;
         } catch (error) {
             console.error('خطأ في إرسال الرسالة:', error);
+            return false;
+        }
+    }
+    
+    // إرسال صورة
+    async sendImage(imageDataUrl) {
+        if (!this.currentPartner || !imageDataUrl) {
+            return false;
+        }
+        
+        const chatId = this.generateChatId(this.currentUser.username, this.currentPartner.username);
+        
+        try {
+            await db.collection('chats')
+                .doc(chatId)
+                .collection('messages')
+                .add({
+                    type: 'image',
+                    sender: this.currentUser.username,
+                    sender_name: this.currentUser.name,
+                    receiver: this.currentPartner.username,
+                    receiver_name: this.currentPartner.name,
+                    image_url: imageDataUrl,
+                    edited: false,
+                    old_message: '',
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            
+            return true;
+        } catch (error) {
+            console.error('خطأ في إرسال الصورة:', error);
             return false;
         }
     }
@@ -100,6 +162,18 @@ class FirebaseChat {
                 minute: '2-digit'
             }) : '';
         
+        let contentHtml = '';
+        
+        if (messageData.type === 'image') {
+            contentHtml = `
+                <div class="message-image" onclick="openImageViewer('${messageData.image_url}')">
+                    <img src="${messageData.image_url}" alt="صورة" loading="lazy">
+                </div>
+            `;
+        } else {
+            contentHtml = `<div class="message-content">${this.escapeHtml(messageData.message)}</div>`;
+        }
+        
         let oldVersionHtml = '';
         if (messageData.edited && messageData.old_message) {
             oldVersionHtml = `<div class="old-version">النسخة القديمة: ${this.escapeHtml(messageData.old_message)}</div>`;
@@ -107,7 +181,7 @@ class FirebaseChat {
         
         messageElement.innerHTML = `
             <div class="message-content-wrapper">
-                <div class="message-content">${this.escapeHtml(messageData.message)}</div>
+                ${contentHtml}
                 ${oldVersionHtml}
             </div>
             <div class="message-time">${time} ${messageData.edited ? '• معدلة' : ''}</div>
@@ -124,7 +198,7 @@ class FirebaseChat {
         const isSent = messageData.sender === this.currentUser.username;
         
         if (!isSent) {
-            return; // لا نضيف أحداث للرسائل المستلمة
+            return;
         }
         
         // كليك يمين (كمبيوتر)
@@ -157,7 +231,6 @@ class FirebaseChat {
             clearTimeout(this.longPressTimer);
         }, { passive: true });
         
-        // كليك عادي (لإلغاء التحديد)
         messageElement.addEventListener('click', (e) => {
             if (!this.isLongPress) {
                 this.deselectMessage();
@@ -169,8 +242,6 @@ class FirebaseChat {
     // إظهار قائمة السياق (كمبيوتر)
     showContextMenu(e, messageElement, messageData) {
         e.preventDefault();
-        
-        // إزالة أي قائمة موجودة
         this.removeContextMenu();
         
         const menu = document.createElement('div');
@@ -180,10 +251,15 @@ class FirebaseChat {
         menu.style.left = e.clientX + 'px';
         menu.style.top = e.clientY + 'px';
         
+        const isImage = messageData.type === 'image';
+        const messageContent = isImage ? '' : this.escapeHtml(messageData.message);
+        
         menu.innerHTML = `
-            <button class="context-menu-item edit-item" onclick="firebaseChat.contextEditMessage('${messageData.id}', '${this.escapeHtml(messageData.message)}')">
+            ${!isImage ? `
+            <button class="context-menu-item edit-item" onclick="firebaseChat.contextEditMessage('${messageData.id}', '${messageContent}')">
                 ✏️ تعديل الرسالة
             </button>
+            ` : ''}
             <button class="context-menu-item delete-item" onclick="firebaseChat.contextDeleteMessage('${messageData.id}')">
                 🗑️ حذف الرسالة
             </button>
@@ -191,7 +267,6 @@ class FirebaseChat {
         
         document.body.appendChild(menu);
         
-        // إغلاق القائمة عند النقر خارجها
         setTimeout(() => {
             document.addEventListener('click', this.closeContextMenu);
             document.addEventListener('contextmenu', this.closeContextMenu);
@@ -210,16 +285,13 @@ class FirebaseChat {
     
     // تحديد رسالة (موبايل)
     selectMessage(messageElement, messageData) {
-        // إلغاء تحديد أي رسالة أخرى
         this.deselectMessage();
         
         this.selectedMessageId = messageData.id;
         this.selectedMessageElement = messageElement;
         
         messageElement.classList.add('selected');
-        
-        // إظهار شريط الأدوات
-        this.showMobileToolbar();
+        this.showMobileToolbar(messageData);
     }
     
     // إلغاء تحديد الرسالة
@@ -230,34 +302,35 @@ class FirebaseChat {
         
         this.selectedMessageId = null;
         this.selectedMessageElement = null;
-        
-        // إخفاء شريط الأدوات
         this.hideMobileToolbar();
     }
     
     // إظهار شريط الأدوات للموبايل
-    showMobileToolbar() {
+    showMobileToolbar(messageData) {
         let toolbar = document.getElementById('mobileToolbar');
         
         if (!toolbar) {
             toolbar = document.createElement('div');
             toolbar.id = 'mobileToolbar';
             toolbar.className = 'mobile-toolbar';
-            
-            toolbar.innerHTML = `
-                <button class="toolbar-btn" onclick="firebaseChat.toolbarEditMessage()">
-                    ✏️ تعديل
-                </button>
-                <button class="toolbar-btn delete" onclick="firebaseChat.toolbarDeleteMessage()">
-                    🗑️ حذف
-                </button>
-                <button class="toolbar-btn cancel" onclick="firebaseChat.deselectMessage()">
-                    ✕ إلغاء
-                </button>
-            `;
-            
             document.querySelector('.chat-area').appendChild(toolbar);
         }
+        
+        const isImage = messageData.type === 'image';
+        
+        toolbar.innerHTML = `
+            ${!isImage ? `
+            <button class="toolbar-btn" onclick="firebaseChat.toolbarEditMessage()">
+                ✏️ تعديل
+            </button>
+            ` : ''}
+            <button class="toolbar-btn delete" onclick="firebaseChat.toolbarDeleteMessage()">
+                🗑️ حذف
+            </button>
+            <button class="toolbar-btn cancel" onclick="firebaseChat.deselectMessage()">
+                ✕ إلغاء
+            </button>
+        `;
         
         toolbar.style.display = 'flex';
     }
@@ -406,7 +479,7 @@ class FirebaseChat {
                 throw new Error('الرسالة غير موجودة');
             }
             
-            const deletedMessage = messageDoc.data().message;
+            const deletedMessage = messageDoc.data().message || 'صورة';
             
             await messageRef.delete();
             
@@ -424,21 +497,24 @@ class FirebaseChat {
         this.editingMessageId = null;
     }
     
-    // تحميل قائمة المستخدمين
+    // تحميل قائمة المحادثات فقط
     async loadUsers() {
         try {
-            const users = await firebaseAuth.getAllUsers();
-            const chatList = document.getElementById('chatList');
+            await this.loadChatPartners();
             
+            const chatList = document.getElementById('chatList');
             chatList.innerHTML = '';
             
-            if (users.length === 0) {
-                chatList.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">لا يوجد مستخدمين</div>';
+            if (this.chatPartners.size === 0) {
+                chatList.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">لا توجد محادثات بعد<br>ابحث عن مستخدم للبدء</div>';
                 return;
             }
             
-            users.forEach(user => {
-                if (user.username !== this.currentUser.username) {
+            for (const username of this.chatPartners) {
+                const userDoc = await db.collection('users').doc(username).get();
+                
+                if (userDoc.exists) {
+                    const user = userDoc.data();
                     const chatItem = document.createElement('div');
                     chatItem.className = 'chat-item';
                     chatItem.onclick = () => this.selectPartner(user);
@@ -456,7 +532,7 @@ class FirebaseChat {
                     
                     chatList.appendChild(chatItem);
                 }
-            });
+            }
         } catch (error) {
             console.error('خطأ في تحميل المستخدمين:', error);
         }
@@ -469,6 +545,7 @@ class FirebaseChat {
         
         document.getElementById('messageInput').disabled = false;
         document.getElementById('sendBtn').disabled = false;
+        document.getElementById('attachBtn').disabled = false;
         
         await this.startChat(user);
     }
@@ -500,6 +577,20 @@ async function deleteMessage(messageId) {
     await firebaseChat.deleteMessage(messageId);
 }
 
+// فتح عارض الصور
+function openImageViewer(imageUrl) {
+    const viewer = document.getElementById('imageViewer');
+    const image = document.getElementById('viewerImage');
+    image.src = imageUrl;
+    viewer.classList.add('show');
+}
+
+// إغلاق عارض الصور
+function closeImageViewer() {
+    const viewer = document.getElementById('imageViewer');
+    viewer.classList.remove('show');
+}
+
 // إغلاق قائمة السياق عند النقر في أي مكان
 document.addEventListener('click', function(e) {
     if (!e.target.closest('.context-menu')) {
@@ -513,5 +604,6 @@ document.addEventListener('keydown', function(e) {
         firebaseChat.closeContextMenu();
         firebaseChat.deselectMessage();
         closeEditModal();
+        closeImageViewer();
     }
 });
