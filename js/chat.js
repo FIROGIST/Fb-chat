@@ -11,7 +11,8 @@ class FirebaseChat {
         this.isLongPress = false;
         this.selectedMessageId = null;
         this.selectedMessageElement = null;
-        this.chatPartners = new Set(); // قائمة الأشخاص اللي كلمتهم
+        this.chatPartners = new Set();
+        this.hiddenChats = new Set();
     }
     
     // بدء محادثة
@@ -19,41 +20,180 @@ class FirebaseChat {
         this.currentPartner = partnerUser;
         this.currentChatId = this.generateChatId(this.currentUser.username, partnerUser.username);
         
-        // إضافة للقائمة
         this.chatPartners.add(partnerUser.username);
-        await this.saveChatPartners();
+        this.hiddenChats.delete(partnerUser.username);
+        await this.saveChatData();
         
         this.listenToMessages(this.currentChatId);
         await sendChatNotification(this.currentUser.username, partnerUser.username);
         return this.currentChatId;
     }
     
-    // توليد معرف المحادثة
     generateChatId(user1, user2) {
         return [user1, user2].sort().join('_');
     }
     
-    // حفظ قائمة المحادثات
-    async saveChatPartners() {
+    // حفظ بيانات المحادثات
+    async saveChatData() {
         try {
             const userRef = db.collection('users').doc(this.currentUser.username);
             await userRef.update({
-                chat_partners: Array.from(this.chatPartners)
+                chat_partners: Array.from(this.chatPartners),
+                hidden_chats: Array.from(this.hiddenChats)
             });
         } catch (error) {
-            console.error('خطأ في حفظ قائمة المحادثات:', error);
+            console.error('خطأ في حفظ البيانات:', error);
         }
     }
     
-    // تحميل قائمة المحادثات
-    async loadChatPartners() {
+    // تحميل بيانات المحادثات
+    async loadChatData() {
         try {
             const userDoc = await db.collection('users').doc(this.currentUser.username).get();
-            if (userDoc.exists && userDoc.data().chat_partners) {
-                this.chatPartners = new Set(userDoc.data().chat_partners);
+            if (userDoc.exists) {
+                if (userDoc.data().chat_partners) {
+                    this.chatPartners = new Set(userDoc.data().chat_partners);
+                }
+                if (userDoc.data().hidden_chats) {
+                    this.hiddenChats = new Set(userDoc.data().hidden_chats);
+                }
             }
         } catch (error) {
-            console.error('خطأ في تحميل قائمة المحادثات:', error);
+            console.error('خطأ في تحميل البيانات:', error);
+        }
+    }
+    
+    // إخفاء شات
+    async hideChat(username) {
+        this.hiddenChats.add(username);
+        this.chatPartners.delete(username);
+        await this.saveChatData();
+        await this.loadUsers();
+    }
+    
+    // إظهار شات مخفي
+    async unhideChat(username) {
+        this.hiddenChats.delete(username);
+        this.chatPartners.add(username);
+        await this.saveChatData();
+        await this.loadUsers();
+        this.closeHiddenChats();
+    }
+    
+    // حذف شات نهائياً
+    async deleteChat(username) {
+        if (!confirm('هل أنت متأكد من حذف هذا الشات نهائياً؟')) {
+            return;
+        }
+        
+        this.hiddenChats.delete(username);
+        this.chatPartners.delete(username);
+        
+        const chatId = this.generateChatId(this.currentUser.username, username);
+        
+        try {
+            const messagesRef = db.collection('chats').doc(chatId).collection('messages');
+            const snapshot = await messagesRef.get();
+            
+            const batch = db.batch();
+            snapshot.docs.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+            await batch.commit();
+            
+            await this.saveChatData();
+            await this.loadUsers();
+            this.closeHiddenChats();
+            
+        } catch (error) {
+            console.error('خطأ في حذف الشات:', error);
+            alert('حدث خطأ في حذف الشات');
+        }
+    }
+    
+    // عرض قائمة الشاتات المخفية
+    async showHiddenChats() {
+        const modal = document.getElementById('hiddenChatsModal');
+        const list = document.getElementById('hiddenChatsList');
+        
+        list.innerHTML = '';
+        
+        if (this.hiddenChats.size === 0) {
+            list.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">لا توجد شاتات مخفية</div>';
+        } else {
+            for (const username of this.hiddenChats) {
+                const userDoc = await db.collection('users').doc(username).get();
+                
+                if (userDoc.exists) {
+                    const user = userDoc.data();
+                    const item = document.createElement('div');
+                    item.className = 'hidden-chat-item';
+                    
+                    const avatar = user.avatar || 'https://via.placeholder.com/35';
+                    
+                    item.innerHTML = `
+                        <img src="${avatar}" alt="${user.name}" onerror="this.src='https://via.placeholder.com/35'">
+                        <div class="hidden-chat-info">
+                            <h4>${this.escapeHtml(user.name)}</h4>
+                            <p>@${this.escapeHtml(user.username)}</p>
+                        </div>
+                        <button class="unhide-btn" onclick="firebaseChat.unhideChat('${username}')" title="إظهار">👁️</button>
+                        <button class="delete-chat-btn" onclick="firebaseChat.deleteChat('${username}')" title="حذف نهائي">🗑️</button>
+                    `;
+                    
+                    list.appendChild(item);
+                }
+            }
+        }
+        
+        modal.classList.add('show');
+    }
+    
+    // إغلاق نافذة الشاتات المخفية
+    closeHiddenChats() {
+        const modal = document.getElementById('hiddenChatsModal');
+        modal.classList.remove('show');
+    }
+    
+    // عرض قائمة السياق للشات
+    showChatContextMenu(e, username) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        this.removeChatContextMenu();
+        
+        const menu = document.createElement('div');
+        menu.className = 'context-menu';
+        menu.id = 'chatContextMenu';
+        menu.style.position = 'fixed';
+        menu.style.left = e.clientX + 'px';
+        menu.style.top = e.clientY + 'px';
+        
+        menu.innerHTML = `
+            <button class="context-menu-item" onclick="firebaseChat.hideChat('${username}'); firebaseChat.removeChatContextMenu();">
+                👁️ إخفاء الشات
+            </button>
+            <button class="context-menu-item delete-item" onclick="firebaseChat.deleteChat('${username}'); firebaseChat.removeChatContextMenu();">
+                🗑️ حذف الشات نهائياً
+            </button>
+        `;
+        
+        document.body.appendChild(menu);
+        
+        setTimeout(() => {
+            document.addEventListener('click', this.closeChatContextMenu);
+        }, 0);
+    }
+    
+    closeChatContextMenu() {
+        this.removeChatContextMenu();
+        document.removeEventListener('click', firebaseChat.closeChatContextMenu);
+    }
+    
+    removeChatContextMenu() {
+        const menu = document.getElementById('chatContextMenu');
+        if (menu) {
+            menu.remove();
         }
     }
     
@@ -187,7 +327,6 @@ class FirebaseChat {
             <div class="message-time">${time} ${messageData.edited ? '• معدلة' : ''}</div>
         `;
         
-        // إضافة الأحداث
         this.addMessageEvents(messageElement, messageData);
         
         messagesContainer.appendChild(messageElement);
@@ -201,14 +340,12 @@ class FirebaseChat {
             return;
         }
         
-        // كليك يمين (كمبيوتر)
         messageElement.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             e.stopPropagation();
             this.showContextMenu(e, messageElement, messageData);
         });
         
-        // ضغطة مطولة (موبايل)
         messageElement.addEventListener('touchstart', (e) => {
             this.isLongPress = false;
             clearTimeout(this.longPressTimer);
@@ -239,7 +376,7 @@ class FirebaseChat {
         });
     }
     
-    // إظهار قائمة السياق (كمبيوتر)
+    // إظهار قائمة السياق للرسالة
     showContextMenu(e, messageElement, messageData) {
         e.preventDefault();
         this.removeContextMenu();
@@ -273,7 +410,6 @@ class FirebaseChat {
         }, 0);
     }
     
-    // إغلاق قائمة السياق
     closeContextMenu() {
         const menu = document.getElementById('contextMenu');
         if (menu) {
@@ -283,7 +419,6 @@ class FirebaseChat {
         document.removeEventListener('contextmenu', firebaseChat.closeContextMenu);
     }
     
-    // تحديد رسالة (موبايل)
     selectMessage(messageElement, messageData) {
         this.deselectMessage();
         
@@ -294,7 +429,6 @@ class FirebaseChat {
         this.showMobileToolbar(messageData);
     }
     
-    // إلغاء تحديد الرسالة
     deselectMessage() {
         if (this.selectedMessageElement) {
             this.selectedMessageElement.classList.remove('selected');
@@ -305,7 +439,6 @@ class FirebaseChat {
         this.hideMobileToolbar();
     }
     
-    // إظهار شريط الأدوات للموبايل
     showMobileToolbar(messageData) {
         let toolbar = document.getElementById('mobileToolbar');
         
@@ -335,7 +468,6 @@ class FirebaseChat {
         toolbar.style.display = 'flex';
     }
     
-    // إخفاء شريط الأدوات
     hideMobileToolbar() {
         const toolbar = document.getElementById('mobileToolbar');
         if (toolbar) {
@@ -343,19 +475,16 @@ class FirebaseChat {
         }
     }
     
-    // تعديل من قائمة السياق
     contextEditMessage(messageId, currentMessage) {
         this.closeContextMenu();
         this.openEditModal(messageId, currentMessage);
     }
     
-    // حذف من قائمة السياق
     contextDeleteMessage(messageId) {
         this.closeContextMenu();
         this.deleteMessage(messageId);
     }
     
-    // تعديل من شريط الأدوات
     toolbarEditMessage() {
         if (this.selectedMessageId && this.selectedMessageElement) {
             const messageContent = this.selectedMessageElement.querySelector('.message-content');
@@ -365,7 +494,6 @@ class FirebaseChat {
         }
     }
     
-    // حذف من شريط الأدوات
     toolbarDeleteMessage() {
         if (this.selectedMessageId) {
             this.deleteMessage(this.selectedMessageId);
@@ -373,7 +501,6 @@ class FirebaseChat {
         }
     }
     
-    // إزالة قائمة السياق
     removeContextMenu() {
         const menu = document.getElementById('contextMenu');
         if (menu) {
@@ -381,28 +508,24 @@ class FirebaseChat {
         }
     }
     
-    // التحقق من جهاز اللمس
     isTouchDevice() {
         return ('ontouchstart' in window) || 
                (navigator.maxTouchPoints > 0) || 
                (navigator.msMaxTouchPoints > 0);
     }
     
-    // تهريب HTML
     escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
     }
     
-    // عكس تهريب HTML
     unescapeHtml(text) {
         const div = document.createElement('div');
         div.innerHTML = text;
         return div.textContent;
     }
     
-    // فتح نافذة التعديل
     openEditModal(messageId, currentMessage) {
         this.editingMessageId = messageId;
         
@@ -417,7 +540,6 @@ class FirebaseChat {
         }, 100);
     }
     
-    // حفظ التعديل
     async saveEditMessage() {
         const editTextarea = document.getElementById('editMessageText');
         const newMessage = editTextarea.value.trim();
@@ -457,7 +579,6 @@ class FirebaseChat {
         }
     }
     
-    // حذف رسالة
     async deleteMessage(messageId) {
         if (!confirm('هل أنت متأكد من حذف هذه الرسالة؟')) {
             return;
@@ -491,33 +612,62 @@ class FirebaseChat {
         }
     }
     
-    // إغلاق نافذة التعديل
     closeEditModal() {
         document.getElementById('editModal').classList.remove('show');
         this.editingMessageId = null;
     }
     
-    // تحميل قائمة المحادثات فقط
+    // تحميل قائمة المحادثات (بدون المخفية)
     async loadUsers() {
         try {
-            await this.loadChatPartners();
+            await this.loadChatData();
             
             const chatList = document.getElementById('chatList');
             chatList.innerHTML = '';
             
-            if (this.chatPartners.size === 0) {
-                chatList.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">لا توجد محادثات بعد<br>ابحث عن مستخدم للبدء</div>';
+            const visibleChats = Array.from(this.chatPartners).filter(u => !this.hiddenChats.has(u));
+            
+            if (visibleChats.length === 0) {
+                chatList.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">لا توجد محادثات<br>ابحث عن مستخدم للبدء</div>';
                 return;
             }
             
-            for (const username of this.chatPartners) {
+            for (const username of visibleChats) {
                 const userDoc = await db.collection('users').doc(username).get();
                 
                 if (userDoc.exists) {
                     const user = userDoc.data();
                     const chatItem = document.createElement('div');
                     chatItem.className = 'chat-item';
+                    chatItem.dataset.username = username;
                     chatItem.onclick = () => this.selectPartner(user);
+                    
+                    // أحداث الإخفاء
+                    chatItem.addEventListener('contextmenu', (e) => {
+                        this.showChatContextMenu(e, username);
+                    });
+                    
+                    chatItem.addEventListener('touchstart', (e) => {
+                        this.isLongPress = false;
+                        clearTimeout(this.longPressTimer);
+                        
+                        this.longPressTimer = setTimeout(() => {
+                            this.isLongPress = true;
+                            this.showChatContextMenu(e, username);
+                            
+                            if (navigator.vibrate) {
+                                navigator.vibrate(50);
+                            }
+                        }, this.longPressDuration);
+                    }, { passive: true });
+                    
+                    chatItem.addEventListener('touchend', () => {
+                        clearTimeout(this.longPressTimer);
+                    }, { passive: true });
+                    
+                    chatItem.addEventListener('touchmove', () => {
+                        clearTimeout(this.longPressTimer);
+                    }, { passive: true });
                     
                     const avatar = user.avatar || 'https://via.placeholder.com/35';
                     
@@ -538,7 +688,6 @@ class FirebaseChat {
         }
     }
     
-    // اختيار شريك المحادثة
     async selectPartner(user) {
         document.getElementById('chatPartner').textContent = `${user.name} (@${user.username})`;
         document.getElementById('messages').innerHTML = '';
@@ -551,7 +700,6 @@ class FirebaseChat {
     }
 }
 
-// إنشاء نسخة من الكلاس
 const firebaseChat = new FirebaseChat();
 
 // ============ دوال عامة ============
@@ -577,7 +725,6 @@ async function deleteMessage(messageId) {
     await firebaseChat.deleteMessage(messageId);
 }
 
-// فتح عارض الصور
 function openImageViewer(imageUrl) {
     const viewer = document.getElementById('imageViewer');
     const image = document.getElementById('viewerImage');
@@ -585,25 +732,29 @@ function openImageViewer(imageUrl) {
     viewer.classList.add('show');
 }
 
-// إغلاق عارض الصور
 function closeImageViewer() {
     const viewer = document.getElementById('imageViewer');
     viewer.classList.remove('show');
 }
 
-// إغلاق قائمة السياق عند النقر في أي مكان
+function closeHiddenChats() {
+    firebaseChat.closeHiddenChats();
+}
+
 document.addEventListener('click', function(e) {
     if (!e.target.closest('.context-menu')) {
         firebaseChat.closeContextMenu();
+        firebaseChat.closeChatContextMenu();
     }
 });
 
-// إغلاق قائمة السياق عند الضغط على ESC
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         firebaseChat.closeContextMenu();
+        firebaseChat.closeChatContextMenu();
         firebaseChat.deselectMessage();
         closeEditModal();
         closeImageViewer();
+        closeHiddenChats();
     }
 });
