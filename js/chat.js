@@ -13,26 +13,115 @@ class FirebaseChat {
         this.selectedMessageElement = null;
         this.chatPartners = new Set();
         this.hiddenChats = new Set();
-        this.developerUsername = 'FIROGIST'; // اليوزرنيم المميز
+        this.developerUsername = 'FIROGIST';
     }
     
     // التحقق من المطور
     isDeveloper(username) {
-        return username === this.developerUsername;
+        return username && username.toUpperCase() === this.developerUsername.toUpperCase();
     }
     
-    // الحصول على علامة المطور
-    getDeveloperBadge(username) {
-        if (this.isDeveloper(username)) {
-            return {
-                name: '<span class="verified-name">' + this.escapeHtml(username) + ' <span class="gold-check">✓</span></span>',
-                username: '@' + this.escapeHtml(username) + ' <span class="dev-badge">مطور</span>'
-            };
+    // الحصول على اسم مع علامة
+    getDisplayName(user) {
+        if (this.isDeveloper(user.username)) {
+            return `<span class="verified-name">${this.escapeHtml(user.name)} <span class="gold-check">✓</span></span>`;
         }
-        return {
-            name: this.escapeHtml(username),
-            username: '@' + this.escapeHtml(username)
-        };
+        return this.escapeHtml(user.name);
+    }
+    
+    // الحصول على يوزرنيم مع شارة
+    getDisplayUsername(user) {
+        if (this.isDeveloper(user.username)) {
+            return `@${this.escapeHtml(user.username)} <span class="dev-badge">مطور</span>`;
+        }
+        return `@${this.escapeHtml(user.username)}`;
+    }
+    
+    // تحديث حالة الاتصال
+    async updateOnlineStatus() {
+        try {
+            const userRef = db.collection('users').doc(this.currentUser.username);
+            await userRef.update({
+                is_online: true,
+                last_seen: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        } catch (error) {
+            console.error('خطأ في تحديث الحالة:', error);
+        }
+    }
+    
+    // تحديث آخر ظهور عند الخروج
+    async updateOfflineStatus() {
+        try {
+            const userRef = db.collection('users').doc(this.currentUser.username);
+            await userRef.update({
+                is_online: false,
+                last_seen: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        } catch (error) {
+            console.error('خطأ في تحديث الحالة:', error);
+        }
+    }
+    
+    // الحصول على حالة المستخدم
+    async getUserStatus(username) {
+        try {
+            const userDoc = await db.collection('users').doc(username).get();
+            if (userDoc.exists) {
+                const data = userDoc.data();
+                const now = new Date();
+                const lastSeen = data.last_seen ? data.last_seen.toDate() : null;
+                
+                let status = 'offline';
+                let lastSeenText = '';
+                
+                if (data.is_online) {
+                    status = 'online';
+                    lastSeenText = 'متصل الآن';
+                } else if (lastSeen) {
+                    const diffMinutes = Math.floor((now - lastSeen) / 60000);
+                    
+                    if (diffMinutes < 1) {
+                        lastSeenText = 'آخر ظهور: منذ لحظات';
+                    } else if (diffMinutes < 60) {
+                        lastSeenText = `آخر ظهور: منذ ${diffMinutes} دقيقة`;
+                    } else if (diffMinutes < 1440) {
+                        const hours = Math.floor(diffMinutes / 60);
+                        lastSeenText = `آخر ظهور: منذ ${hours} ساعة`;
+                    } else {
+                        const days = Math.floor(diffMinutes / 1440);
+                        lastSeenText = `آخر ظهور: منذ ${days} يوم`;
+                    }
+                }
+                
+                return { status, lastSeenText };
+            }
+            return { status: 'offline', lastSeenText: '' };
+        } catch (error) {
+            console.error('خطأ في الحصول على الحالة:', error);
+            return { status: 'offline', lastSeenText: '' };
+        }
+    }
+    
+    // تحديث قراءة الرسائل
+    async markMessagesAsRead(chatId) {
+        try {
+            const messagesRef = db.collection('chats')
+                .doc(chatId)
+                .collection('messages')
+                .where('receiver', '==', this.currentUser.username)
+                .where('read', '==', false);
+            
+            const snapshot = await messagesRef.get();
+            
+            const batch = db.batch();
+            snapshot.docs.forEach(doc => {
+                batch.update(doc.ref, { read: true });
+            });
+            await batch.commit();
+        } catch (error) {
+            console.error('خطأ في تحديث القراءة:', error);
+        }
     }
     
     // بدء محادثة
@@ -45,8 +134,31 @@ class FirebaseChat {
         await this.saveChatData();
         
         this.listenToMessages(this.currentChatId);
+        
+        // تحديث حالة الشريك
+        await this.updatePartnerStatus(partnerUser.username);
+        
+        // تحديد الرسائل كمقروءة
+        await this.markMessagesAsRead(this.currentChatId);
+        
         await sendChatNotification(this.currentUser.username, partnerUser.username);
         return this.currentChatId;
+    }
+    
+    // تحديث حالة الشريك في الواجهة
+    async updatePartnerStatus(username) {
+        const status = await this.getUserStatus(username);
+        const statusElement = document.getElementById('partnerStatus');
+        
+        if (statusElement) {
+            if (status.status === 'online') {
+                statusElement.innerHTML = '<span class="status-dot online"></span> متصل الآن';
+                statusElement.className = 'partner-status online';
+            } else {
+                statusElement.innerHTML = `<span class="status-dot offline"></span> ${status.lastSeenText}`;
+                statusElement.className = 'partner-status';
+            }
+        }
     }
     
     generateChatId(user1, user2) {
@@ -150,13 +262,14 @@ class FirebaseChat {
                     item.className = 'hidden-chat-item';
                     
                     const avatar = user.avatar || 'https://via.placeholder.com/35';
-                    const badge = this.getDeveloperBadge(user.username);
+                    const displayName = this.getDisplayName(user);
+                    const displayUsername = this.getDisplayUsername(user);
                     
                     item.innerHTML = `
                         <img src="${avatar}" alt="${user.name}" onerror="this.src='https://via.placeholder.com/35'">
                         <div class="hidden-chat-info">
-                            <h4>${badge.name}</h4>
-                            <p>${badge.username}</p>
+                            <h4>${displayName}</h4>
+                            <p>${displayUsername}</p>
                         </div>
                         <button class="unhide-btn" onclick="firebaseChat.unhideChat('${username}')" title="إظهار">👁️</button>
                         <button class="delete-chat-btn" onclick="firebaseChat.deleteChat('${username}')" title="حذف نهائي">🗑️</button>
@@ -239,6 +352,9 @@ class FirebaseChat {
                 });
                 
                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                
+                // تحديث القراءة
+                this.markMessagesAsRead(chatId);
             }, error => {
                 console.error('خطأ في الاستماع للرسائل:', error);
             });
@@ -265,6 +381,7 @@ class FirebaseChat {
                     message: messageText.trim(),
                     edited: false,
                     old_message: '',
+                    read: false,
                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
             
@@ -296,6 +413,7 @@ class FirebaseChat {
                     image_url: imageDataUrl,
                     edited: false,
                     old_message: '',
+                    read: false,
                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
             
@@ -340,12 +458,22 @@ class FirebaseChat {
             oldVersionHtml = `<div class="old-version">النسخة القديمة: ${this.escapeHtml(messageData.old_message)}</div>`;
         }
         
+        // علامة القراءة للرسائل المرسلة
+        let readReceiptHtml = '';
+        if (isSent) {
+            if (messageData.read) {
+                readReceiptHtml = '<span class="read-receipt read">✓✓</span>';
+            } else {
+                readReceiptHtml = '<span class="read-receipt sent">✓</span>';
+            }
+        }
+        
         messageElement.innerHTML = `
             <div class="message-content-wrapper">
                 ${contentHtml}
                 ${oldVersionHtml}
             </div>
-            <div class="message-time">${time} ${messageData.edited ? '• معدلة' : ''}</div>
+            <div class="message-time">${time} ${readReceiptHtml} ${messageData.edited ? '• معدلة' : ''}</div>
         `;
         
         this.addMessageEvents(messageElement, messageData);
@@ -658,6 +786,7 @@ class FirebaseChat {
                 
                 if (userDoc.exists) {
                     const user = userDoc.data();
+                    const userStatus = await this.getUserStatus(username);
                     const chatItem = document.createElement('div');
                     chatItem.className = 'chat-item';
                     chatItem.dataset.username = username;
@@ -690,15 +819,19 @@ class FirebaseChat {
                     }, { passive: true });
                     
                     const avatar = user.avatar || 'https://via.placeholder.com/35';
-                    const badge = this.getDeveloperBadge(user.username);
+                    const displayName = this.getDisplayName(user);
+                    const displayUsername = this.getDisplayUsername(user);
+                    const statusDot = userStatus.status === 'online' ? 
+                        '<span class="status-dot online"></span>' : 
+                        '<span class="status-dot offline"></span>';
                     
                     chatItem.innerHTML = `
                         <img src="${avatar}" alt="${user.name}" onerror="this.src='https://via.placeholder.com/35'">
                         <div class="chat-item-info">
-                            <h4>${badge.name}</h4>
-                            <p>${badge.username}</p>
+                            <h4>${displayName}</h4>
+                            <p>${displayUsername}</p>
                         </div>
-                        <span class="online-dot"></span>
+                        ${statusDot}
                     `;
                     
                     chatList.appendChild(chatItem);
@@ -710,8 +843,10 @@ class FirebaseChat {
     }
     
     async selectPartner(user) {
-        const badge = this.getDeveloperBadge(user.name);
-        document.getElementById('chatPartner').innerHTML = `${badge.name} (${badge.username})`;
+        const displayName = this.getDisplayName(user);
+        const displayUsername = this.getDisplayUsername(user);
+        
+        document.getElementById('chatPartner').innerHTML = `${displayName} (${displayUsername})`;
         document.getElementById('messages').innerHTML = '';
         
         document.getElementById('messageInput').disabled = false;
@@ -719,6 +854,13 @@ class FirebaseChat {
         document.getElementById('attachBtn').disabled = false;
         
         await this.startChat(user);
+        
+        // تحديث الحالة كل 30 ثانية
+        setInterval(async () => {
+            if (this.currentPartner) {
+                await this.updatePartnerStatus(this.currentPartner.username);
+            }
+        }, 30000);
     }
 }
 
