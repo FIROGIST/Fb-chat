@@ -7,6 +7,9 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/chat.css">
     
+    <!-- خطوط Google -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Tajawal:wght@400;500;700&family=Changa:wght@400;600&family=Amiri:wght@400;700&family=Reem+Kufi:wght@400;600&display=swap" rel="stylesheet">
+    
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -14,12 +17,13 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
 </head>
 <body>
-    <div class="chat-container">
+    <div class="chat-container" id="chatContainer">
         <!-- القائمة الجانبية -->
         <div class="sidebar">
             <div class="user-profile" id="userProfile">
                 <div class="menu-dots" onclick="toggleMenu()">⋮</div>
                 <div class="dropdown-menu" id="dropdownMenu">
+                    <button onclick="openThemeModal()">🎨 تغيير الثيم</button>
                     <button onclick="logout()">تسجيل الخروج</button>
                 </div>
                 <div class="avatar-wrapper">
@@ -44,13 +48,12 @@
         </div>
         
         <!-- منطقة المحادثة -->
-        <div class="chat-area">
-            <div class="chat-header">
+        <div class="chat-area" id="chatArea">
+            <div class="chat-header" id="chatHeader">
                 <h3 id="chatPartner">اختر مستخدم للمحادثة</h3>
             </div>
             
             <div class="messages" id="messages">
-                <!-- الرسائل ستظهر هنا -->
                 <div class="welcome-message">
                     <p>👋 مرحباً بك في FB Chat</p>
                     <p>اختر مستخدم من القائمة للبدء في المحادثة</p>
@@ -68,6 +71,67 @@
         </div>
     </div>
     
+    <!-- نافذة الثيمات -->
+    <div class="theme-modal" id="themeModal">
+        <div class="theme-content">
+            <div class="theme-header">
+                <h3>🎨 تخصيص الثيم</h3>
+                <button class="close-theme-btn" onclick="closeThemeModal()">✕</button>
+            </div>
+            
+            <div class="theme-tabs">
+                <button class="theme-tab active" onclick="switchThemeTab('font')">الخطوط</button>
+                <button class="theme-tab" onclick="switchThemeTab('messageBg')">خلفية الرسالة</button>
+                <button class="theme-tab" onclick="switchThemeTab('chatBg')">خلفية الشات</button>
+            </div>
+            
+            <div class="theme-body">
+                <!-- تبويب الخطوط -->
+                <div class="theme-section" id="fontSection">
+                    <h4>اختر الخط:</h4>
+                    <div class="font-options">
+                        <button class="font-option" onclick="selectFont('Cairo')" style="font-family: 'Cairo';">Cairo - القاهرة</button>
+                        <button class="font-option" onclick="selectFont('Tajawal')" style="font-family: 'Tajawal';">Tajawal - تجوال</button>
+                        <button class="font-option" onclick="selectFont('Changa')" style="font-family: 'Changa';">Changa - تشانغا</button>
+                        <button class="font-option" onclick="selectFont('Amiri')" style="font-family: 'Amiri';">Amiri - أميري</button>
+                        <button class="font-option" onclick="selectFont('Reem Kufi')" style="font-family: 'Reem Kufi';">Reem Kufi - ريم كوفي</button>
+                    </div>
+                </div>
+                
+                <!-- تبويب خلفية الرسالة -->
+                <div class="theme-section" id="messageBgSection" style="display: none;">
+                    <h4>اختر خلفية الرسالة:</h4>
+                    <div class="color-options">
+                        <button class="color-option" style="background: #ffffff;" onclick="selectMessageBg('#ffffff')"></button>
+                        <button class="color-option" style="background: #e3f2fd;" onclick="selectMessageBg('#e3f2fd')"></button>
+                        <button class="color-option" style="background: #f5f5f5;" onclick="selectMessageBg('#f5f5f5')"></button>
+                        <button class="color-option" style="background: #fff8e1;" onclick="selectMessageBg('#fff8e1')"></button>
+                        <button class="color-option" style="background: #fce4ec;" onclick="selectMessageBg('#fce4ec')"></button>
+                        <button class="color-option" style="background: #e8f5e9;" onclick="selectMessageBg('#e8f5e9')"></button>
+                    </div>
+                </div>
+                
+                <!-- تبويب خلفية الشات -->
+                <div class="theme-section" id="chatBgSection" style="display: none;">
+                    <h4>اختر خلفية الشات:</h4>
+                    <div class="color-options">
+                        <button class="color-option" style="background: #f5f5f5;" onclick="selectChatBg('#f5f5f5')"></button>
+                        <button class="color-option" style="background: #ffffff;" onclick="selectChatBg('#ffffff')"></button>
+                        <button class="color-option" style="background: #e8f0fe;" onclick="selectChatBg('#e8f0fe')"></button>
+                        <button class="color-option" style="background: #fffde7;" onclick="selectChatBg('#fffde7')"></button>
+                        <button class="color-option" style="background: #212121;" onclick="selectChatBg('#212121')"></button>
+                        <button class="color-option" style="background: #eceff1;" onclick="selectChatBg('#eceff1')"></button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="theme-footer">
+                <button class="btn-reset-theme" onclick="resetTheme()">إعادة تعيين</button>
+                <button class="btn-save-theme" onclick="saveTheme()">حفظ الثيم</button>
+            </div>
+        </div>
+    </div>
+    
     <!-- نافذة عرض الصورة -->
     <div class="image-viewer" id="imageViewer" onclick="closeImageViewer()">
         <img src="" alt="صورة" id="viewerImage">
@@ -80,9 +144,7 @@
                 <h3>🔒 الشاتات المخفية</h3>
                 <button class="close-hidden-btn" onclick="closeHiddenChats()">✕</button>
             </div>
-            <div class="hidden-chats-list" id="hiddenChatsList">
-                <!-- الشاتات المخفية ستظهر هنا -->
-            </div>
+            <div class="hidden-chats-list" id="hiddenChatsList"></div>
         </div>
     </div>
     
