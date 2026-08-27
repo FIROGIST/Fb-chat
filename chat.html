@@ -11,6 +11,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
 </head>
 <body>
     <div class="chat-container">
@@ -27,12 +28,12 @@
             </div>
             
             <div class="search-box">
-                <input type="text" id="searchUser" placeholder="ابحث...">
+                <input type="text" id="searchUser" placeholder="ابحث في محادثاتك...">
                 <button onclick="searchUser()">بحث</button>
             </div>
             
             <div class="chat-list" id="chatList">
-                <!-- قائمة المستخدمين ستظهر هنا -->
+                <!-- قائمة المحادثات ستظهر هنا -->
             </div>
         </div>
         
@@ -51,10 +52,19 @@
             </div>
             
             <div class="message-input">
+                <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+                <button class="attach-btn" onclick="document.getElementById('imageInput').click()" id="attachBtn" disabled title="إرسال صورة">
+                    📎
+                </button>
                 <input type="text" id="messageInput" placeholder="اكتب رسالتك..." disabled>
                 <button onclick="sendMessage()" id="sendBtn" disabled>إرسال</button>
             </div>
         </div>
+    </div>
+    
+    <!-- نافذة عرض الصورة -->
+    <div class="image-viewer" id="imageViewer" onclick="closeImageViewer()">
+        <img src="" alt="صورة" id="viewerImage">
     </div>
     
     <!-- نافذة التعديل -->
