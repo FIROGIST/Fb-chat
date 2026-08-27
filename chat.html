@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FB Chat - المحادثات</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/chat.css">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+</head>
+<body>
+    <div class="chat-container">
+        <!-- القائمة الجانبية -->
+        <div class="sidebar">
+            <div class="user-profile">
+                <img src="" alt="صورة المستخدم" id="userAvatar">
+                <h3 id="userName"></h3>
+                <p id="userUsername"></p>
+                <button onclick="logout()">تسجيل الخروج</button>
+            </div>
+            
+            <div class="search-box">
+                <input type="text" id="searchUser" placeholder="ابحث عن مستخدم...">
+                <button onclick="searchUser()">بحث</button>
+            </div>
+            
+            <div class="chat-list" id="chatList">
+                <!-- قائمة المستخدمين ستظهر هنا -->
+            </div>
+        </div>
+        
+        <!-- منطقة المحادثة -->
+        <div class="chat-area">
+            <div class="chat-header">
+                <h3 id="chatPartner">اختر مستخدم للمحادثة</h3>
+            </div>
+            
+            <div class="messages" id="messages">
+                <!-- الرسائل ستظهر هنا -->
+                <div class="welcome-message">
+                    <p>👋 مرحباً بك في FB Chat</p>
+                    <p>اختر مستخدم من القائمة للبدء في المحادثة</p>
+                </div>
+            </div>
+            
+            <div class="message-input">
+                <input type="text" id="messageInput" placeholder="اكتب رسالتك..." disabled>
+                <button onclick="sendMessage()" id="sendBtn" disabled>إرسال</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="js/firebase-config.js"></script>
+    <script src="js/telegram.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/chat.js"></script>
+    <script src="js/chat-main.js"></script>
+</body>
+</html>
