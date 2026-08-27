@@ -23,18 +23,20 @@
             <div class="user-profile" id="userProfile">
                 <div class="menu-dots" onclick="toggleMenu()">⋮</div>
                 <div class="dropdown-menu" id="dropdownMenu">
+                    <button onclick="toggleDarkMode()" id="darkModeBtn">🌙 الوضع الداكن</button>
                     <button onclick="openThemeModal()">🎨 تغيير الثيم</button>
                     <button onclick="logout()">تسجيل الخروج</button>
                 </div>
                 <div class="avatar-wrapper">
                     <img src="" alt="صورة المستخدم" id="userAvatar">
-                    <button class="edit-avatar-btn" onclick="changeAvatar()" title="تغيير الصورة">
-                        ✏️
-                    </button>
+                    <button class="edit-avatar-btn" onclick="changeAvatar()" title="تغيير الصورة">✏️</button>
                 </div>
                 <input type="file" id="avatarInput" accept="image/*" style="display: none;" onchange="handleAvatarChange(event)">
                 <h3 id="userName"></h3>
+                <button class="edit-name-btn" onclick="editName()" title="تعديل الاسم">✏️</button>
+                <br>
                 <p id="userUsername"></p>
+                <button class="edit-username-btn" onclick="editUsername()" title="تعديل اسم المستخدم">✏️</button>
             </div>
             
             <div class="search-box">
@@ -42,9 +44,7 @@
                 <button onclick="searchUser()">بحث</button>
             </div>
             
-            <div class="chat-list" id="chatList">
-                <!-- قائمة المحادثات ستظهر هنا -->
-            </div>
+            <div class="chat-list" id="chatList"></div>
         </div>
         
         <!-- منطقة المحادثة -->
@@ -61,13 +61,56 @@
                 </div>
             </div>
             
+            <!-- شريط الرد -->
+            <div class="reply-bar" id="replyBar" style="display: none;">
+                <div class="reply-info">
+                    <span class="reply-label">رد على:</span>
+                    <span id="replyName"></span>
+                    <span id="replyMessage"></span>
+                </div>
+                <button class="cancel-reply-btn" onclick="cancelReply()">✕</button>
+            </div>
+            
             <div class="message-input">
                 <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
-                <button class="attach-btn" onclick="document.getElementById('imageInput').click()" id="attachBtn" disabled title="إرسال صورة">
-                    📎
-                </button>
+                <button class="attach-btn" onclick="document.getElementById('imageInput').click()" id="attachBtn" disabled title="إرسال صورة">📎</button>
+                <button class="emoji-btn" onclick="toggleEmojiPicker()" id="emojiBtn" disabled title="إيموجي">😊</button>
                 <input type="text" id="messageInput" placeholder="اكتب رسالتك..." disabled>
                 <button onclick="sendMessage()" id="sendBtn" disabled>إرسال</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- نافذة الإيموجي -->
+    <div class="emoji-picker" id="emojiPicker" style="display: none;">
+        <div class="emoji-header">
+            <h4>اختر إيموجي</h4>
+            <button class="close-emoji-btn" onclick="toggleEmojiPicker()">✕</button>
+        </div>
+        <div class="emoji-grid" id="emojiGrid"></div>
+    </div>
+    
+    <!-- نافذة تعديل الاسم -->
+    <div class="edit-modal" id="editNameModal">
+        <div class="edit-modal-content">
+            <h3>تعديل الاسم</h3>
+            <input type="text" id="editNameInput" placeholder="الاسم الجديد">
+            <div class="edit-modal-buttons">
+                <button class="btn-cancel-edit" onclick="closeEditNameModal()">إلغاء</button>
+                <button class="btn-save-edit" onclick="saveNewName()">حفظ</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- نافذة تعديل اليوزرنيم -->
+    <div class="edit-modal" id="editUsernameModal">
+        <div class="edit-modal-content">
+            <h3>تعديل اسم المستخدم</h3>
+            <p class="warning-text">⚠️ تحذير: مش هتقدر تغير اسم المستخدم تاني غير بعد 7 أيام!</p>
+            <input type="text" id="editUsernameInput" placeholder="اسم المستخدم الجديد">
+            <div class="edit-modal-buttons">
+                <button class="btn-cancel-edit" onclick="closeEditUsernameModal()">إلغاء</button>
+                <button class="btn-save-edit" onclick="saveNewUsername()">حفظ</button>
             </div>
         </div>
     </div>
@@ -146,7 +189,7 @@
         </div>
     </div>
     
-    <!-- نافذة التعديل -->
+    <!-- نافذة تعديل الرسالة -->
     <div class="edit-modal" id="editModal">
         <div class="edit-modal-content">
             <h3>تعديل الرسالة</h3>
