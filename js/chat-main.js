@@ -27,7 +27,12 @@ document.addEventListener('DOMContentLoaded', function() {
     let profileClickCount = 0;
     let profileClickTimer = null;
     
-    document.getElementById('userProfile').addEventListener('click', function() {
+    document.getElementById('userProfile').addEventListener('click', function(e) {
+        // منع العداد إذا ضغط على زر تغيير الصورة
+        if (e.target.closest('.edit-avatar-btn')) {
+            return;
+        }
+        
         profileClickCount++;
         
         clearTimeout(profileClickTimer);
@@ -41,6 +46,56 @@ document.addEventListener('DOMContentLoaded', function() {
             firebaseChat.showHiddenChats();
         }
     });
+    
+    // تغيير الصورة الشخصية
+    window.changeAvatar = function() {
+        document.getElementById('avatarInput').click();
+    };
+    
+    // معالجة تغيير الصورة
+    window.handleAvatarChange = async function(event) {
+        const file = event.target.files[0];
+        
+        if (!file) {
+            return;
+        }
+        
+        if (!file.type.startsWith('image/')) {
+            alert('الرجاء اختيار ملف صورة');
+            return;
+        }
+        
+        if (file.size > 2 * 1024 * 1024) {
+            alert('حجم الصورة كبير جداً (الحد الأقصى 2 ميجابايت)');
+            return;
+        }
+        
+        const reader = new FileReader();
+        
+        reader.onload = async function(e) {
+            const imageDataUrl = e.target.result;
+            
+            // تحديث الصورة في Firebase
+            const result = await firebaseAuth.updateAvatar(currentUser.username, imageDataUrl);
+            
+            if (result.success) {
+                // تحديث الصورة في الواجهة
+                document.getElementById('userAvatar').src = imageDataUrl;
+                
+                // تحديث الجلسة المحلية
+                const updatedUser = JSON.parse(localStorage.getItem('fb_chat_current_user'));
+                updatedUser.avatar = imageDataUrl;
+                localStorage.setItem('fb_chat_current_user', JSON.stringify(updatedUser));
+                
+                console.log('✅ تم تحديث الصورة الشخصية');
+            } else {
+                alert('فشل في تحديث الصورة');
+            }
+        };
+        
+        reader.readAsDataURL(file);
+        event.target.value = '';
+    };
     
     // البحث عن مستخدم جديد
     window.searchUser = async function() {
