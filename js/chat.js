@@ -14,7 +14,8 @@ class FirebaseChat {
         this.chatPartners = new Set();
         this.hiddenChats = new Set();
         this.developerUsername = 'FIROGIST';
-        this.replyingTo = null; // الرسالة اللي بنرد عليها
+        this.princessUsername = 'beso';
+        this.replyingTo = null;
     }
     
     // التحقق من المطور
@@ -22,10 +23,18 @@ class FirebaseChat {
         return username && username.toUpperCase() === this.developerUsername.toUpperCase();
     }
     
+    // التحقق من البرنسيسه
+    isPrincess(username) {
+        return username && username.toLowerCase() === this.princessUsername.toLowerCase();
+    }
+    
     // الحصول على اسم مع علامة
     getDisplayName(user) {
         if (this.isDeveloper(user.username)) {
             return `<span class="verified-name">${this.escapeHtml(user.name)} <span class="gold-check">✓</span></span>`;
+        }
+        if (this.isPrincess(user.username)) {
+            return `<span class="princess-name">${this.escapeHtml(user.name)} <span class="silver-check">✓</span></span>`;
         }
         return this.escapeHtml(user.name);
     }
@@ -34,6 +43,9 @@ class FirebaseChat {
     getDisplayUsername(user) {
         if (this.isDeveloper(user.username)) {
             return `@${this.escapeHtml(user.username)} <span class="dev-badge">مطور</span>`;
+        }
+        if (this.isPrincess(user.username)) {
+            return `@${this.escapeHtml(user.username)} <span class="princess-badge">البرنسيسه</span>`;
         }
         return `@${this.escapeHtml(user.username)}`;
     }
@@ -379,7 +391,6 @@ class FirebaseChat {
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
             };
             
-            // إضافة الرد إذا موجود
             if (this.replyingTo) {
                 messageData.reply_to = {
                     message: this.replyingTo.message,
@@ -392,7 +403,6 @@ class FirebaseChat {
                 .collection('messages')
                 .add(messageData);
             
-            // إلغاء الرد بعد الإرسال
             this.cancelReply();
             
             return true;
@@ -451,7 +461,6 @@ class FirebaseChat {
                 minute: '2-digit'
             }) : '';
         
-        // عرض الرد إذا موجود
         let replyHtml = '';
         if (messageData.reply_to) {
             replyHtml = `
@@ -504,16 +513,12 @@ class FirebaseChat {
     
     // إضافة أحداث الرسالة
     addMessageEvents(messageElement, messageData) {
-        const isSent = messageData.sender === this.currentUser.username;
-        
-        // كليك يمين للرد
         messageElement.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             e.stopPropagation();
             this.showContextMenu(e, messageElement, messageData);
         });
         
-        // ضغطة مطولة
         messageElement.addEventListener('touchstart', (e) => {
             this.isLongPress = false;
             clearTimeout(this.longPressTimer);
@@ -543,7 +548,6 @@ class FirebaseChat {
             this.isLongPress = false;
         });
         
-        // سحب لليمين للرد (موبايل)
         let startX = 0;
         messageElement.addEventListener('touchstart', (e) => {
             startX = e.touches[0].clientX;
