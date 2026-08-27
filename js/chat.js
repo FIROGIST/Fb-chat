@@ -13,6 +13,26 @@ class FirebaseChat {
         this.selectedMessageElement = null;
         this.chatPartners = new Set();
         this.hiddenChats = new Set();
+        this.developerUsername = 'FIROGIST'; // اليوزرنيم المميز
+    }
+    
+    // التحقق من المطور
+    isDeveloper(username) {
+        return username === this.developerUsername;
+    }
+    
+    // الحصول على علامة المطور
+    getDeveloperBadge(username) {
+        if (this.isDeveloper(username)) {
+            return {
+                name: '<span class="verified-name">' + this.escapeHtml(username) + ' <span class="gold-check">✓</span></span>',
+                username: '@' + this.escapeHtml(username) + ' <span class="dev-badge">مطور</span>'
+            };
+        }
+        return {
+            name: this.escapeHtml(username),
+            username: '@' + this.escapeHtml(username)
+        };
     }
     
     // بدء محادثة
@@ -130,12 +150,13 @@ class FirebaseChat {
                     item.className = 'hidden-chat-item';
                     
                     const avatar = user.avatar || 'https://via.placeholder.com/35';
+                    const badge = this.getDeveloperBadge(user.username);
                     
                     item.innerHTML = `
                         <img src="${avatar}" alt="${user.name}" onerror="this.src='https://via.placeholder.com/35'">
                         <div class="hidden-chat-info">
-                            <h4>${this.escapeHtml(user.name)}</h4>
-                            <p>@${this.escapeHtml(user.username)}</p>
+                            <h4>${badge.name}</h4>
+                            <p>${badge.username}</p>
                         </div>
                         <button class="unhide-btn" onclick="firebaseChat.unhideChat('${username}')" title="إظهار">👁️</button>
                         <button class="delete-chat-btn" onclick="firebaseChat.deleteChat('${username}')" title="حذف نهائي">🗑️</button>
@@ -669,12 +690,13 @@ class FirebaseChat {
                     }, { passive: true });
                     
                     const avatar = user.avatar || 'https://via.placeholder.com/35';
+                    const badge = this.getDeveloperBadge(user.username);
                     
                     chatItem.innerHTML = `
                         <img src="${avatar}" alt="${user.name}" onerror="this.src='https://via.placeholder.com/35'">
                         <div class="chat-item-info">
-                            <h4>${this.escapeHtml(user.name)}</h4>
-                            <p>@${this.escapeHtml(user.username)}</p>
+                            <h4>${badge.name}</h4>
+                            <p>${badge.username}</p>
                         </div>
                         <span class="online-dot"></span>
                     `;
@@ -688,7 +710,8 @@ class FirebaseChat {
     }
     
     async selectPartner(user) {
-        document.getElementById('chatPartner').textContent = `${user.name} (@${user.username})`;
+        const badge = this.getDeveloperBadge(user.name);
+        document.getElementById('chatPartner').innerHTML = `${badge.name} (${badge.username})`;
         document.getElementById('messages').innerHTML = '';
         
         document.getElementById('messageInput').disabled = false;
@@ -703,7 +726,6 @@ const firebaseChat = new FirebaseChat();
 
 // ============ دوال الثيم ============
 
-// حفظ الثيم في Firebase
 async function saveThemeToFirebase(theme) {
     try {
         const currentUser = JSON.parse(localStorage.getItem('fb_chat_current_user'));
@@ -717,7 +739,6 @@ async function saveThemeToFirebase(theme) {
     }
 }
 
-// تحميل الثيم من Firebase
 async function loadThemeFromFirebase() {
     try {
         const currentUser = JSON.parse(localStorage.getItem('fb_chat_current_user'));
