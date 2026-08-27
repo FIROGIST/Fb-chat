@@ -25,6 +25,28 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('userAvatar').src = 'https://via.placeholder.com/50';
     }
     
+    // تحديث حالة الاتصال
+    firebaseChat.updateOnlineStatus();
+    
+    // تحديث الحالة كل 30 ثانية
+    setInterval(() => {
+        firebaseChat.updateOnlineStatus();
+    }, 30000);
+    
+    // تحديث الحالة عند الخروج
+    window.addEventListener('beforeunload', function() {
+        firebaseChat.updateOfflineStatus();
+    });
+    
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            firebaseChat.updateOfflineStatus();
+        } else {
+            firebaseChat.updateOnlineStatus();
+            firebaseChat.loadUsers();
+        }
+    });
+    
     // تحميل الثيم المحفوظ
     loadTheme();
     
@@ -308,6 +330,7 @@ function resetTheme() {
 
 function logout() {
     if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
+        firebaseChat.updateOfflineStatus();
         localStorage.removeItem('fb_chat_current_user');
         localStorage.removeItem('fb_chat_remember');
         window.location.href = 'index.html';
