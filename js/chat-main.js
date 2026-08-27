@@ -10,8 +10,17 @@ document.addEventListener('DOMContentLoaded', function() {
     // عرض معلومات المستخدم مع العلامة
     updateProfileDisplay(currentUser);
     
+    // عرض الصورة الشخصية
+    const currentUsername = currentUser.username.toUpperCase();
+    
     if (currentUser.avatar) {
         document.getElementById('userAvatar').src = currentUser.avatar;
+    } else if (currentUsername === 'FIROGIST') {
+        // صورتك الخاصة من ملفات الموقع - ظاهرة للكل
+        document.getElementById('userAvatar').src = 'images/123456.png';
+        document.getElementById('userAvatar').onerror = function() {
+            this.src = 'https://via.placeholder.com/50';
+        };
     } else {
         document.getElementById('userAvatar').src = 'https://via.placeholder.com/50';
     }
@@ -307,10 +316,14 @@ function insertEmoji(emoji) {
 function updateProfileDisplay(user) {
     const currentUsername = user.username.toUpperCase();
     const isDev = currentUsername === 'FIROGIST';
+    const isPrincess = currentUsername === 'BESO';
     
     if (isDev) {
         document.getElementById('userName').innerHTML = `${user.name} <span class="gold-check">✓</span>`;
         document.getElementById('userUsername').innerHTML = `@${user.username} <span class="dev-badge">مطور</span>`;
+    } else if (isPrincess) {
+        document.getElementById('userName').innerHTML = `${user.name} <span class="silver-check">✓</span>`;
+        document.getElementById('userUsername').innerHTML = `@${user.username} <span class="princess-badge">البرنسيسه</span>`;
     } else {
         document.getElementById('userName').textContent = user.name;
         document.getElementById('userUsername').textContent = '@' + user.username;
@@ -358,7 +371,6 @@ async function saveNewName() {
 function editUsername() {
     const currentUser = JSON.parse(localStorage.getItem('fb_chat_current_user'));
     
-    // التحقق من آخر تغيير
     if (currentUser.last_username_change) {
         const lastChange = new Date(currentUser.last_username_change);
         const now = new Date();
@@ -398,17 +410,14 @@ async function saveNewUsername() {
     }
     
     try {
-        // التحقق من عدم وجود المستخدم
         const userDoc = await db.collection('users').doc(newUsername).get();
         if (userDoc.exists) {
             alert('اسم المستخدم موجود بالفعل');
             return;
         }
         
-        // حذف المستند القديم
         await db.collection('users').doc(currentUser.username).delete();
         
-        // إنشاء مستند جديد
         await db.collection('users').doc(newUsername).set({
             ...currentUser,
             username: newUsername,
@@ -417,7 +426,6 @@ async function saveNewUsername() {
             hidden_chats: []
         });
         
-        // تحديث الجلسة
         currentUser.username = newUsername;
         currentUser.last_username_change = new Date().toISOString();
         localStorage.setItem('fb_chat_current_user', JSON.stringify(currentUser));
@@ -427,7 +435,6 @@ async function saveNewUsername() {
         
         alert('✅ تم تغيير اسم المستخدم بنجاح!\n⚠️ العلامة الذهبية والشارة اختفوا.');
         
-        // إعادة تحميل الصفحة
         setTimeout(() => {
             window.location.reload();
         }, 1500);
