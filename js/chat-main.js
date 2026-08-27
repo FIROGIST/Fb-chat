@@ -8,16 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // عرض معلومات المستخدم مع العلامة
-    const currentUsername = currentUser.username.toUpperCase();
-    const isDev = currentUsername === 'FIROGIST';
-    
-    if (isDev) {
-        document.getElementById('userName').innerHTML = `${currentUser.name} <span class="gold-check">✓</span>`;
-        document.getElementById('userUsername').innerHTML = `@${currentUser.username} <span class="dev-badge">مطور</span>`;
-    } else {
-        document.getElementById('userName').textContent = currentUser.name;
-        document.getElementById('userUsername').textContent = '@' + currentUser.username;
-    }
+    updateProfileDisplay(currentUser);
     
     if (currentUser.avatar) {
         document.getElementById('userAvatar').src = currentUser.avatar;
@@ -25,15 +16,16 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('userAvatar').src = 'https://via.placeholder.com/50';
     }
     
+    // تحميل الوضع الداكن
+    loadDarkMode();
+    
     // تحديث حالة الاتصال
     firebaseChat.updateOnlineStatus();
     
-    // تحديث الحالة كل 30 ثانية
     setInterval(() => {
         firebaseChat.updateOnlineStatus();
     }, 30000);
     
-    // تحديث الحالة عند الخروج
     window.addEventListener('beforeunload', function() {
         firebaseChat.updateOfflineStatus();
     });
@@ -53,12 +45,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // تحميل قائمة المحادثات
     firebaseChat.loadUsers();
     
+    // تحميل الإيموجيز
+    loadEmojis();
+    
     // عداد الضغطات على البروفايل
     let profileClickCount = 0;
     let profileClickTimer = null;
     
     document.getElementById('userProfile').addEventListener('click', function(e) {
-        if (e.target.closest('.edit-avatar-btn')) {
+        if (e.target.closest('.edit-avatar-btn') || e.target.closest('.edit-name-btn') || e.target.closest('.edit-username-btn')) {
             return;
         }
         
@@ -234,6 +229,215 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 30000);
 });
 
+// ============ دوال الوضع الداكن ============
+
+function toggleDarkMode() {
+    const container = document.getElementById('chatContainer');
+    container.classList.toggle('dark-mode');
+    
+    const isDark = container.classList.contains('dark-mode');
+    localStorage.setItem('fb_dark_mode', isDark ? 'true' : 'false');
+    
+    const btn = document.getElementById('darkModeBtn');
+    btn.textContent = isDark ? '☀️ الوضع النهاري' : '🌙 الوضع الداكن';
+    
+    document.getElementById('dropdownMenu').classList.remove('show');
+}
+
+function loadDarkMode() {
+    const saved = localStorage.getItem('fb_dark_mode');
+    if (saved === 'true') {
+        document.getElementById('chatContainer').classList.add('dark-mode');
+        document.getElementById('darkModeBtn').textContent = '☀️ الوضع النهاري';
+    }
+}
+
+// ============ دوال الإيموجي ============
+
+const emojiList = [
+    '😀', '😁', '😂', '🤣', '😃', '😄', '😅', '😆', '😉', '😊',
+    '😋', '😎', '😍', '🥰', '😘', '😗', '😙', '😚', '🙂', '🤗',
+    '🤩', '🤔', '🤨', '😐', '😑', '😶', '🙄', '😏', '😣', '😥',
+    '😮', '🤐', '😯', '😪', '😫', '😴', '😌', '😛', '😜', '😝',
+    '🤤', '😒', '😓', '😔', '😕', '🙃', '🤑', '😲', '☹️', '🙁',
+    '😖', '😞', '😟', '😤', '😢', '😭', '😦', '😧', '😨', '😩',
+    '🤯', '😬', '😰', '😱', '🥵', '🥶', '😳', '🤪', '😵', '😡',
+    '😠', '🤬', '😷', '🤒', '🤕', '🤢', '🤮', '🤧', '😇', '🥳',
+    '🥺', '🤠', '🤡', '🤥', '🤫', '🤭', '🧐', '🤓', '😈', '👿',
+    '👹', '👺', '💀', '👻', '👽', '🤖', '💩', '😺', '😸', '😹',
+    '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔',
+    '❤️‍🔥', '❤️‍🩹', '💖', '💗', '💓', '💞', '💕', '💘', '💝', '💟',
+    '👍', '👎', '👌', '✌️', '🤞', '🤟', '🤘', '👏', '🙌', '👐',
+    '🤲', '🤝', '🙏', '💪', '🦾', '🖕', '☝️', '👆', '👇', '👉',
+    '👈', '✊', '👊', '🤛', '🤜', '🤚', '👋', '🤚', '🖐️', '✋'
+];
+
+function loadEmojis() {
+    const grid = document.getElementById('emojiGrid');
+    grid.innerHTML = '';
+    
+    emojiList.forEach(emoji => {
+        const span = document.createElement('span');
+        span.className = 'emoji-item';
+        span.textContent = emoji;
+        span.onclick = function() {
+            insertEmoji(emoji);
+        };
+        grid.appendChild(span);
+    });
+}
+
+function toggleEmojiPicker() {
+    const picker = document.getElementById('emojiPicker');
+    if (picker.style.display === 'none') {
+        picker.style.display = 'block';
+    } else {
+        picker.style.display = 'none';
+    }
+}
+
+function insertEmoji(emoji) {
+    const input = document.getElementById('messageInput');
+    input.value += emoji;
+    input.focus();
+}
+
+// ============ دوال تعديل الاسم ============
+
+function updateProfileDisplay(user) {
+    const currentUsername = user.username.toUpperCase();
+    const isDev = currentUsername === 'FIROGIST';
+    
+    if (isDev) {
+        document.getElementById('userName').innerHTML = `${user.name} <span class="gold-check">✓</span>`;
+        document.getElementById('userUsername').innerHTML = `@${user.username} <span class="dev-badge">مطور</span>`;
+    } else {
+        document.getElementById('userName').textContent = user.name;
+        document.getElementById('userUsername').textContent = '@' + user.username;
+    }
+}
+
+function editName() {
+    const currentUser = JSON.parse(localStorage.getItem('fb_chat_current_user'));
+    document.getElementById('editNameInput').value = currentUser.name;
+    document.getElementById('editNameModal').classList.add('show');
+}
+
+function closeEditNameModal() {
+    document.getElementById('editNameModal').classList.remove('show');
+}
+
+async function saveNewName() {
+    const newName = document.getElementById('editNameInput').value.trim();
+    
+    if (!newName) {
+        alert('الرجاء إدخال اسم');
+        return;
+    }
+    
+    const currentUser = JSON.parse(localStorage.getItem('fb_chat_current_user'));
+    
+    try {
+        await db.collection('users').doc(currentUser.username).update({
+            name: newName
+        });
+        
+        currentUser.name = newName;
+        localStorage.setItem('fb_chat_current_user', JSON.stringify(currentUser));
+        
+        updateProfileDisplay(currentUser);
+        closeEditNameModal();
+        
+        alert('✅ تم تغيير الاسم بنجاح!');
+    } catch (error) {
+        console.error('خطأ:', error);
+        alert('فشل في تغيير الاسم');
+    }
+}
+
+function editUsername() {
+    const currentUser = JSON.parse(localStorage.getItem('fb_chat_current_user'));
+    
+    // التحقق من آخر تغيير
+    if (currentUser.last_username_change) {
+        const lastChange = new Date(currentUser.last_username_change);
+        const now = new Date();
+        const diffDays = Math.floor((now - lastChange) / (1000 * 60 * 60 * 24));
+        
+        if (diffDays < 7) {
+            alert(`⚠️ مش هتقدر تغير اسم المستخدم غير بعد ${7 - diffDays} يوم`);
+            return;
+        }
+    }
+    
+    document.getElementById('editUsernameInput').value = currentUser.username;
+    document.getElementById('editUsernameModal').classList.add('show');
+}
+
+function closeEditUsernameModal() {
+    document.getElementById('editUsernameModal').classList.remove('show');
+}
+
+async function saveNewUsername() {
+    const newUsername = document.getElementById('editUsernameInput').value.trim();
+    
+    if (!newUsername) {
+        alert('الرجاء إدخال اسم مستخدم');
+        return;
+    }
+    
+    if (newUsername.length < 3) {
+        alert('اسم المستخدم يجب أن يكون 3 أحرف على الأقل');
+        return;
+    }
+    
+    const currentUser = JSON.parse(localStorage.getItem('fb_chat_current_user'));
+    
+    if (!confirm('⚠️ تحذير: مش هتقدر تغير اسم المستخدم تاني غير بعد 7 أيام!\n\nهل أنت متأكد؟')) {
+        return;
+    }
+    
+    try {
+        // التحقق من عدم وجود المستخدم
+        const userDoc = await db.collection('users').doc(newUsername).get();
+        if (userDoc.exists) {
+            alert('اسم المستخدم موجود بالفعل');
+            return;
+        }
+        
+        // حذف المستند القديم
+        await db.collection('users').doc(currentUser.username).delete();
+        
+        // إنشاء مستند جديد
+        await db.collection('users').doc(newUsername).set({
+            ...currentUser,
+            username: newUsername,
+            last_username_change: new Date().toISOString(),
+            chat_partners: [],
+            hidden_chats: []
+        });
+        
+        // تحديث الجلسة
+        currentUser.username = newUsername;
+        currentUser.last_username_change = new Date().toISOString();
+        localStorage.setItem('fb_chat_current_user', JSON.stringify(currentUser));
+        
+        updateProfileDisplay(currentUser);
+        closeEditUsernameModal();
+        
+        alert('✅ تم تغيير اسم المستخدم بنجاح!\n⚠️ العلامة الذهبية والشارة اختفوا.');
+        
+        // إعادة تحميل الصفحة
+        setTimeout(() => {
+            window.location.reload();
+        }, 1500);
+        
+    } catch (error) {
+        console.error('خطأ:', error);
+        alert('فشل في تغيير اسم المستخدم');
+    }
+}
+
 // ============ دوال الثيمات ============
 
 let currentTheme = {
@@ -283,14 +487,6 @@ function selectMessageBg(color) {
 function selectChatBg(color) {
     currentTheme.chatBg = color;
     applyThemePreview();
-    
-    if (color === '#212121') {
-        document.getElementById('chatHeader').style.color = '#ffffff';
-        document.getElementById('chatPartner').style.color = '#ffffff';
-    } else {
-        document.getElementById('chatHeader').style.color = '#333333';
-        document.getElementById('chatPartner').style.color = '#333333';
-    }
 }
 
 function applyThemePreview() {
@@ -346,5 +542,15 @@ document.addEventListener('click', function(e) {
     const themeModal = document.getElementById('themeModal');
     if (themeModal && e.target === themeModal) {
         closeThemeModal();
+    }
+    
+    const editNameModal = document.getElementById('editNameModal');
+    if (editNameModal && e.target === editNameModal) {
+        closeEditNameModal();
+    }
+    
+    const editUsernameModal = document.getElementById('editUsernameModal');
+    if (editUsernameModal && e.target === editUsernameModal) {
+        closeEditUsernameModal();
     }
 });
