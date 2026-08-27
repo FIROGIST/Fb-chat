@@ -17,14 +17,17 @@
         <!-- القائمة الجانبية -->
         <div class="sidebar">
             <div class="user-profile">
+                <div class="menu-dots" onclick="toggleMenu()">⋮</div>
+                <div class="dropdown-menu" id="dropdownMenu">
+                    <button onclick="logout()">تسجيل الخروج</button>
+                </div>
                 <img src="" alt="صورة المستخدم" id="userAvatar">
                 <h3 id="userName"></h3>
                 <p id="userUsername"></p>
-                <button onclick="logout()">تسجيل الخروج</button>
             </div>
             
             <div class="search-box">
-                <input type="text" id="searchUser" placeholder="ابحث عن مستخدم...">
+                <input type="text" id="searchUser" placeholder="ابحث...">
                 <button onclick="searchUser()">بحث</button>
             </div>
             
@@ -50,6 +53,18 @@
             <div class="message-input">
                 <input type="text" id="messageInput" placeholder="اكتب رسالتك..." disabled>
                 <button onclick="sendMessage()" id="sendBtn" disabled>إرسال</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- نافذة التعديل -->
+    <div class="edit-modal" id="editModal">
+        <div class="edit-modal-content">
+            <h3>تعديل الرسالة</h3>
+            <textarea id="editMessageText" rows="3"></textarea>
+            <div class="edit-modal-buttons">
+                <button class="btn-cancel-edit" onclick="closeEditModal()">إلغاء</button>
+                <button class="btn-save-edit" onclick="saveEditMessage()">حفظ</button>
             </div>
         </div>
     </div>
