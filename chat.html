@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FB Chat - المحادثات</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/chat.css">
+    
+    <!-- خطوط Google -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Tajawal:wght@400;500;700&family=Changa:wght@400;600&family=Amiri:wght@400;700&family=Reem+Kufi:wght@400;600&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+</head>
+<body>
+    <div class="chat-container" id="chatContainer">
+        <!-- القائمة الجانبية -->
+        <div class="sidebar">
+            <div class="user-profile" id="userProfile">
+                <div class="menu-dots" onclick="toggleMenu()">⋮</div>
+                <div class="dropdown-menu" id="dropdownMenu">
+                    <button onclick="toggleDarkMode()" id="darkModeBtn">🌙 الوضع الداكن</button>
+                    <button onclick="openThemeModal()">🎨 تغيير الثيم</button>
+                    <button onclick="logout()">تسجيل الخروج</button>
+                </div>
+                <div class="avatar-wrapper fire-ring" id="fireRingWrapper">
+                    <img src="" alt="صورة المستخدم" id="userAvatar" onclick="openMyStory()">
+                    <button class="edit-avatar-btn" onclick="changeAvatar()" title="تغيير الصورة">✏️</button>
+                    <button class="add-story-btn" onclick="openStoryUpload()" title="إضافة استوري">+</button>
+                </div>
+                <input type="file" id="avatarInput" accept="image/*" style="display: none;" onchange="handleAvatarChange(event)">
+                <h3 id="userName"></h3>
+                <button class="edit-name-btn" onclick="editName()" title="تعديل الاسم">✏️</button>
+                <br>
+                <p id="userUsername"></p>
+                <button class="edit-username-btn" onclick="editUsername()" title="تعديل اسم المستخدم">✏️</button>
+            </div>
+            
+            <div class="search-box">
+                <input type="text" id="searchUser" placeholder="ابحث في محادثاتك...">
+                <button onclick="searchUser()">بحث</button>
+            </div>
+            
+            <!-- التبويبات -->
+            <div class="main-tabs">
+                <button class="main-tab active" id="chatsTabBtn" onclick="switchMainTab('chats')">💬 المحادثات</button>
+                <button class="main-tab" id="storiesTabBtn" onclick="switchMainTab('stories')">📸 الحالات</button>
+            </div>
+            
+            <div class="chat-list" id="chatList"></div>
+            <div class="stories-list" id="storiesList" style="display: none;"></div>
+        </div>
+        
+        <!-- منطقة المحادثة -->
+        <div class="chat-area" id="chatArea">
+            <div class="chat-header" id="chatHeader">
+                <h3 id="chatPartner">اختر مستخدم للمحادثة</h3>
+                <p id="partnerStatus" class="partner-status"></p>
+            </div>
+            
+            <div class="messages" id="messages">
+                <div class="welcome-message">
+                    <p>👋 مرحباً بك في FB Chat</p>
+                    <p>اختر مستخدم من القائمة للبدء في المحادثة</p>
+                </div>
+            </div>
+            
+            <!-- شريط الرد -->
+            <div class="reply-bar" id="replyBar" style="display: none;">
+                <div class="reply-info">
+                    <span class="reply-label">رد على:</span>
+                    <span id="replyName"></span>
+                    <span id="replyMessage"></span>
+                </div>
+                <button class="cancel-reply-btn" onclick="cancelReply()">✕</button>
+            </div>
+            
+            <!-- شريط التسجيل الصوتي -->
+            <div class="recording-bar" id="recordingBar" style="display: none;">
+                <div class="recording-indicator">
+                    <span class="recording-dot"></span>
+                    <span id="recordingTimer">00:00</span>
+                </div>
+                <button class="cancel-recording-btn" onclick="cancelRecording()">✕ إلغاء</button>
+                <button class="send-recording-btn" onclick="sendVoiceMessage()">📤 إرسال</button>
+            </div>
+            
+            <div class="message-input">
+                <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+                <button class="attach-btn" onclick="document.getElementById('imageInput').click()" id="attachBtn" disabled title="إرسال صورة">📎</button>
+                <button class="emoji-btn" onclick="toggleEmojiPicker()" id="emojiBtn" disabled title="إيموجي">😊</button>
+                <input type="text" id="messageInput" placeholder="اكتب رسالتك..." disabled>
+                <button class="voice-btn" id="voiceBtn" disabled title="تسجيل صوتي" onmousedown="startRecording()" onmouseup="stopRecording()" ontouchstart="startRecording(event)" ontouchend="stopRecording(event)">
+                    🎤
+                </button>
+                <button onclick="sendMessage()" id="sendBtn" disabled>إرسال</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- نافذة رفع الاستوري -->
+    <div class="story-upload-modal" id="storyUploadModal">
+        <div class="story-upload-content">
+            <div class="story-upload-header">
+                <h3>📸 إضافة استوري</h3>
+                <button class="close-story-upload" onclick="closeStoryUpload()">✕</button>
+            </div>
+            <div class="story-upload-body">
+                <input type="file" id="storyFileInput" accept="image/*,video/*" style="display: none;" onchange="handleStoryFileSelect(event)">
+                <button class="story-file-btn" onclick="document.getElementById('storyFileInput').click()">
+                    📁 اختر صورة أو فيديو
+                </button>
+                <div class="story-preview" id="storyPreview" style="display: none;">
+                    <img id="storyImagePreview" src="" alt="معاينة" style="display: none;">
+                    <video id="storyVideoPreview" controls style="display: none;"></video>
+                </div>
+                <input type="text" id="storyCaption" placeholder="اكتب عنوان للاستوري (اختياري)" class="story-caption-input">
+                <div class="story-upload-buttons">
+                    <button class="btn-cancel-story" onclick="closeStoryUpload()">إلغاء</button>
+                    <button class="btn-post-story" onclick="postStory()">نشر الاستوري</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- نافذة عرض الاستوري -->
+    <div class="story-viewer" id="storyViewer">
+        <div class="story-viewer-content">
+            <div class="story-viewer-header">
+                <img id="storyViewerAvatar" src="" alt="صورة" class="story-viewer-avatar">
+                <div class="story-viewer-info">
+                    <h4 id="storyViewerName"></h4>
+                    <p id="storyViewerTime"></p>
+                </div>
+                <div class="story-viewer-actions">
+                    <button class="story-views-btn" onclick="showStoryViews()" title="المشاهدات">👁️ <span id="storyViewCount">0</span></button>
+                    <button class="delete-story-btn" onclick="deleteMyStory()" title="حذف الاستوري" id="deleteStoryBtn" style="display: none;">🗑️</button>
+                    <button class="close-story-viewer" onclick="closeStoryViewer()">✕</button>
+                </div>
+            </div>
+            <div class="story-viewer-media">
+                <img id="storyViewerImage" src="" alt="استوري" style="display: none;">
+                <video id="storyViewerVideo" controls style="display: none;"></video>
+            </div>
+            <div class="story-viewer-caption" id="storyViewerCaption"></div>
+        </div>
+    </div>
+    
+    <!-- نافذة المشاهدات -->
+    <div class="story-views-modal" id="storyViewsModal">
+        <div class="story-views-content">
+            <div class="story-views-header">
+                <h3>👁️ المشاهدات</h3>
+                <button class="close-story-views" onclick="closeStoryViews()">✕</button>
+            </div>
+            <div class="story-views-list" id="storyViewsList"></div>
+        </div>
+    </div>
+    
+    <!-- نافذة الإيموجي -->
+    <div class="emoji-picker" id="emojiPicker" style="display: none;">
+        <div class="emoji-header">
+            <h4>اختر إيموجي</h4>
+            <button class="close-emoji-btn" onclick="toggleEmojiPicker()">✕</button>
+        </div>
+        <div class="emoji-grid" id="emojiGrid"></div>
+    </div>
+    
+    <!-- نافذة تعديل الاسم -->
+    <div class="edit-modal" id="editNameModal">
+        <div class="edit-modal-content">
+            <h3>تعديل الاسم</h3>
+            <input type="text" id="editNameInput" placeholder="الاسم الجديد">
+            <div class="edit-modal-buttons">
+                <button class="btn-cancel-edit" onclick="closeEditNameModal()">إلغاء</button>
+                <button class="btn-save-edit" onclick="saveNewName()">حفظ</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- نافذة تعديل اليوزرنيم -->
+    <div class="edit-modal" id="editUsernameModal">
+        <div class="edit-modal-content">
+            <h3>تعديل اسم المستخدم</h3>
+            <p class="warning-text">⚠️ تحذير: مش هتقدر تغير اسم المستخدم تاني غير بعد 7 أيام!</p>
+            <input type="text" id="editUsernameInput" placeholder="اسم المستخدم الجديد">
+            <div class="edit-modal-buttons">
+                <button class="btn-cancel-edit" onclick="closeEditUsernameModal()">إلغاء</button>
+                <button class="btn-save-edit" onclick="saveNewUsername()">حفظ</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- نافذة الثيمات -->
+    <div class="theme-modal" id="themeModal">
+        <div class="theme-content">
+            <div class="theme-header">
+                <h3>🎨 تخصيص الثيم</h3>
+                <button class="close-theme-btn" onclick="closeThemeModal()">✕</button>
+            </div>
+            
+            <div class="theme-tabs">
+                <button class="theme-tab active" onclick="switchThemeTab('font')">الخطوط</button>
+                <button class="theme-tab" onclick="switchThemeTab('messageBg')">خلفية الرسالة</button>
+                <button class="theme-tab" onclick="switchThemeTab('chatBg')">خلفية الشات</button>
+            </div>
+            
+            <div class="theme-body">
+                <div class="theme-section" id="fontSection">
+                    <h4>اختر الخط:</h4>
+                    <div class="font-options">
+                        <button class="font-option" onclick="selectFont('Cairo')" style="font-family: 'Cairo';">Cairo - القاهرة</button>
+                        <button class="font-option" onclick="selectFont('Tajawal')" style="font-family: 'Tajawal';">Tajawal - تجوال</button>
+                        <button class="font-option" onclick="selectFont('Changa')" style="font-family: 'Changa';">Changa - تشانغا</button>
+                        <button class="font-option" onclick="selectFont('Amiri')" style="font-family: 'Amiri';">Amiri - أميري</button>
+                        <button class="font-option" onclick="selectFont('Reem Kufi')" style="font-family: 'Reem Kufi';">Reem Kufi - ريم كوفي</button>
+                    </div>
+                </div>
+                
+                <div class="theme-section" id="messageBgSection" style="display: none;">
+                    <h4>اختر خلفية الرسالة:</h4>
+                    <div class="color-options">
+                        <button class="color-option" style="background: #ffffff;" onclick="selectMessageBg('#ffffff')"></button>
+                        <button class="color-option" style="background: #e3f2fd;" onclick="selectMessageBg('#e3f2fd')"></button>
+                        <button class="color-option" style="background: #f5f5f5;" onclick="selectMessageBg('#f5f5f5')"></button>
+                        <button class="color-option" style="background: #fff8e1;" onclick="selectMessageBg('#fff8e1')"></button>
+                        <button class="color-option" style="background: #fce4ec;" onclick="selectMessageBg('#fce4ec')"></button>
+                        <button class="color-option" style="background: #e8f5e9;" onclick="selectMessageBg('#e8f5e9')"></button>
+                    </div>
+                </div>
+                
+                <div class="theme-section" id="chatBgSection" style="display: none;">
+                    <h4>اختر خلفية الشات:</h4>
+                    <div class="color-options">
+                        <button class="color-option" style="background: #f5f5f5;" onclick="selectChatBg('#f5f5f5')"></button>
+                        <button class="color-option" style="background: #ffffff;" onclick="selectChatBg('#ffffff')"></button>
+                        <button class="color-option" style="background: #e8f0fe;" onclick="selectChatBg('#e8f0fe')"></button>
+                        <button class="color-option" style="background: #fffde7;" onclick="selectChatBg('#fffde7')"></button>
+                        <button class="color-option" style="background: #212121;" onclick="selectChatBg('#212121')"></button>
+                        <button class="color-option" style="background: #eceff1;" onclick="selectChatBg('#eceff1')"></button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="theme-footer">
+                <button class="btn-reset-theme" onclick="resetTheme()">إعادة تعيين</button>
+                <button class="btn-save-theme" onclick="saveTheme()">حفظ الثيم</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- نافذة عرض الصورة -->
+    <div class="image-viewer" id="imageViewer" onclick="closeImageViewer()">
+        <img src="" alt="صورة" id="viewerImage">
+    </div>
+    
+    <!-- نافذة الشاتات المخفية -->
+    <div class="hidden-chats-modal" id="hiddenChatsModal">
+        <div class="hidden-chats-content">
+            <div class="hidden-chats-header">
+                <h3>🔒 الشاتات المخفية</h3>
+                <button class="close-hidden-btn" onclick="closeHiddenChats()">✕</button>
+            </div>
+            <div class="hidden-chats-list" id="hiddenChatsList"></div>
+        </div>
+    </div>
+    
+    <!-- نافذة تعديل الرسالة -->
+    <div class="edit-modal" id="editModal">
+        <div class="edit-modal-content">
+            <h3>تعديل الرسالة</h3>
+            <textarea id="editMessageText" rows="3"></textarea>
+            <div class="edit-modal-buttons">
+                <button class="btn-cancel-edit" onclick="closeEditModal()">إلغاء</button>
+                <button class="btn-save-edit" onclick="saveEditMessage()">حفظ</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="js/firebase-config.js"></script>
+    <script src="js/telegram.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/chat.js"></script>
+    <script src="js/chat-main.js"></script>
+</body>
+</html>
