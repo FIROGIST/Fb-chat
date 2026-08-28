@@ -27,9 +27,11 @@
                     <button onclick="openThemeModal()">🎨 تغيير الثيم</button>
                     <button onclick="logout()">تسجيل الخروج</button>
                 </div>
-                <div class="avatar-wrapper">
-                    <img src="" alt="صورة المستخدم" id="userAvatar">
+                <div class="avatar-wrapper fire-ring" id="fireRingWrapper">
+                    <img src="" alt="صورة المستخدم" id="userAvatar" onclick="openMyStory()">
                     <button class="edit-avatar-btn" onclick="changeAvatar()" title="تغيير الصورة">✏️</button>
+                    <!-- زر إضافة استوري -->
+                    <button class="add-story-btn" onclick="openStoryUpload()" title="إضافة استوري">+</button>
                 </div>
                 <input type="file" id="avatarInput" accept="image/*" style="display: none;" onchange="handleAvatarChange(event)">
                 <h3 id="userName"></h3>
@@ -71,13 +73,84 @@
                 <button class="cancel-reply-btn" onclick="cancelReply()">✕</button>
             </div>
             
+            <!-- شريط التسجيل الصوتي -->
+            <div class="recording-bar" id="recordingBar" style="display: none;">
+                <div class="recording-indicator">
+                    <span class="recording-dot"></span>
+                    <span id="recordingTimer">00:00</span>
+                </div>
+                <button class="cancel-recording-btn" onclick="cancelRecording()">✕ إلغاء</button>
+                <button class="send-recording-btn" onclick="sendVoiceMessage()">📤 إرسال</button>
+            </div>
+            
             <div class="message-input">
                 <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
                 <button class="attach-btn" onclick="document.getElementById('imageInput').click()" id="attachBtn" disabled title="إرسال صورة">📎</button>
                 <button class="emoji-btn" onclick="toggleEmojiPicker()" id="emojiBtn" disabled title="إيموجي">😊</button>
                 <input type="text" id="messageInput" placeholder="اكتب رسالتك..." disabled>
+                <button class="voice-btn" id="voiceBtn" disabled title="تسجيل صوتي" onmousedown="startRecording()" onmouseup="stopRecording()" ontouchstart="startRecording(event)" ontouchend="stopRecording(event)">
+                    🎤
+                </button>
                 <button onclick="sendMessage()" id="sendBtn" disabled>إرسال</button>
             </div>
+        </div>
+    </div>
+    
+    <!-- نافذة رفع الاستوري -->
+    <div class="story-upload-modal" id="storyUploadModal">
+        <div class="story-upload-content">
+            <div class="story-upload-header">
+                <h3>📸 إضافة استوري</h3>
+                <button class="close-story-upload" onclick="closeStoryUpload()">✕</button>
+            </div>
+            <div class="story-upload-body">
+                <input type="file" id="storyFileInput" accept="image/*,video/*" style="display: none;" onchange="handleStoryFileSelect(event)">
+                <button class="story-file-btn" onclick="document.getElementById('storyFileInput').click()">
+                    📁 اختر صورة أو فيديو
+                </button>
+                <div class="story-preview" id="storyPreview" style="display: none;">
+                    <img id="storyImagePreview" src="" alt="معاينة" style="display: none;">
+                    <video id="storyVideoPreview" controls style="display: none;"></video>
+                </div>
+                <input type="text" id="storyCaption" placeholder="اكتب عنوان للاستوري (اختياري)" class="story-caption-input">
+                <div class="story-upload-buttons">
+                    <button class="btn-cancel-story" onclick="closeStoryUpload()">إلغاء</button>
+                    <button class="btn-post-story" onclick="postStory()">نشر الاستوري</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- نافذة عرض الاستوري -->
+    <div class="story-viewer" id="storyViewer">
+        <div class="story-viewer-content">
+            <div class="story-viewer-header">
+                <img id="storyViewerAvatar" src="" alt="صورة" class="story-viewer-avatar">
+                <div class="story-viewer-info">
+                    <h4 id="storyViewerName"></h4>
+                    <p id="storyViewerTime"></p>
+                </div>
+                <div class="story-viewer-actions">
+                    <button class="story-views-btn" onclick="showStoryViews()" title="المشاهدات">👁️ <span id="storyViewCount">0</span></button>
+                    <button class="close-story-viewer" onclick="closeStoryViewer()">✕</button>
+                </div>
+            </div>
+            <div class="story-viewer-media">
+                <img id="storyViewerImage" src="" alt="استوري" style="display: none;">
+                <video id="storyViewerVideo" controls style="display: none;"></video>
+            </div>
+            <div class="story-viewer-caption" id="storyViewerCaption"></div>
+        </div>
+    </div>
+    
+    <!-- نافذة المشاهدات -->
+    <div class="story-views-modal" id="storyViewsModal">
+        <div class="story-views-content">
+            <div class="story-views-header">
+                <h3>👁️ المشاهدات</h3>
+                <button class="close-story-views" onclick="closeStoryViews()">✕</button>
+            </div>
+            <div class="story-views-list" id="storyViewsList"></div>
         </div>
     </div>
     
