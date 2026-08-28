@@ -30,7 +30,6 @@
                 <div class="avatar-wrapper fire-ring" id="fireRingWrapper">
                     <img src="" alt="صورة المستخدم" id="userAvatar" onclick="openMyStory()">
                     <button class="edit-avatar-btn" onclick="changeAvatar()" title="تغيير الصورة">✏️</button>
-                    <!-- زر إضافة استوري -->
                     <button class="add-story-btn" onclick="openStoryUpload()" title="إضافة استوري">+</button>
                 </div>
                 <input type="file" id="avatarInput" accept="image/*" style="display: none;" onchange="handleAvatarChange(event)">
@@ -46,7 +45,14 @@
                 <button onclick="searchUser()">بحث</button>
             </div>
             
+            <!-- التبويبات -->
+            <div class="main-tabs">
+                <button class="main-tab active" id="chatsTabBtn" onclick="switchMainTab('chats')">💬 المحادثات</button>
+                <button class="main-tab" id="storiesTabBtn" onclick="switchMainTab('stories')">📸 الحالات</button>
+            </div>
+            
             <div class="chat-list" id="chatList"></div>
+            <div class="stories-list" id="storiesList" style="display: none;"></div>
         </div>
         
         <!-- منطقة المحادثة -->
@@ -132,6 +138,7 @@
                 </div>
                 <div class="story-viewer-actions">
                     <button class="story-views-btn" onclick="showStoryViews()" title="المشاهدات">👁️ <span id="storyViewCount">0</span></button>
+                    <button class="delete-story-btn" onclick="deleteMyStory()" title="حذف الاستوري" id="deleteStoryBtn" style="display: none;">🗑️</button>
                     <button class="close-story-viewer" onclick="closeStoryViewer()">✕</button>
                 </div>
             </div>
