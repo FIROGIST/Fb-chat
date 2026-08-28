@@ -70,7 +70,7 @@ class FirebaseChat {
                 caption: caption || '',
                 views: [],
                 created_at: firebase.firestore.FieldValue.serverTimestamp(),
-                expires_at: firebase.firestore.Timestamp.fromDate(expiresAt)  // ✅ Timestamp صحيح
+                expires_at: firebase.firestore.Timestamp.fromDate(expiresAt)
             });
             
             await db.collection('users').doc(this.currentUser.username).update({
@@ -90,9 +90,14 @@ class FirebaseChat {
         try {
             await db.collection('stories').doc(storyId).delete();
             
-            await db.collection('users').doc(this.currentUser.username).update({
-                has_story: false
-            });
+            // التحقق من وجود استوريهات أخرى لنفس المستخدم
+            const remainingStories = await this.getUserStories(this.currentUser.username);
+            
+            if (remainingStories.length === 0) {
+                await db.collection('users').doc(this.currentUser.username).update({
+                    has_story: false
+                });
+            }
             
             return true;
         } catch (error) {
@@ -101,13 +106,52 @@ class FirebaseChat {
         }
     }
     
-    // جلب كل الحالات النشطة
+    // جلب كل الحالات النشطة مجمعة حسب المستخدم
     async getAllActiveStories() {
         try {
             const snapshot = await db.collection('stories')
                 .where('expires_at', '>', new Date())
                 .orderBy('expires_at', 'desc')
-                .limit(20)
+                .limit(50)
+                .get();
+            
+            const stories = [];
+            snapshot.forEach(doc => {
+                stories.push({ id: doc.id, ...doc.data() });
+            });
+            
+            // تجميع الاستوريهات حسب المستخدم
+            const groupedStories = {};
+            
+            stories.forEach(story => {
+                if (!groupedStories[story.username]) {
+                    groupedStories[story.username] = {
+                        username: story.username,
+                        name: story.name,
+                        avatar: story.avatar || '',
+                        stories: []
+                    };
+                }
+                groupedStories[story.username].stories.push(story);
+            });
+            
+            // تحويل إلى مصفوفة
+            const result = Object.values(groupedStories);
+            
+            return result;
+        } catch (error) {
+            console.error('خطأ في جلب الحالات:', error);
+            return [];
+        }
+    }
+    
+    // الحصول على كل استوريهات مستخدم
+    async getUserStories(username) {
+        try {
+            const snapshot = await db.collection('stories')
+                .where('username', '==', username)
+                .where('expires_at', '>', new Date())
+                .orderBy('created_at', 'asc')
                 .get();
             
             const stories = [];
@@ -117,56 +161,18 @@ class FirebaseChat {
             
             return stories;
         } catch (error) {
-            console.error('خطأ في جلب الحالات:', error);
+            console.error('خطأ في الحصول على استوريهات المستخدم:', error);
             return [];
         }
     }
     
-    // الحصول على الاستوري الخاص بي
-    async getMyStory() {
+    // الحصول على الاستوري الخاص بي (كل الاستوريهات)
+    async getMyStories() {
         try {
-            const snapshot = await db.collection('stories')
-                .where('username', '==', this.currentUser.username)
-                .where('expires_at', '>', new Date())
-                .orderBy('expires_at', 'desc')
-                .limit(1)
-                .get();
-            
-            if (!snapshot.empty) {
-                const doc = snapshot.docs[0];
-                return {
-                    id: doc.id,
-                    ...doc.data()
-                };
-            }
-            return null;
+            return await this.getUserStories(this.currentUser.username);
         } catch (error) {
-            console.error('خطأ في الحصول على الاستوري:', error);
-            return null;
-        }
-    }
-    
-    // الحصول على استوري مستخدم آخر
-    async getUserStory(username) {
-        try {
-            const snapshot = await db.collection('stories')
-                .where('username', '==', username)
-                .where('expires_at', '>', new Date())
-                .orderBy('expires_at', 'desc')
-                .limit(1)
-                .get();
-            
-            if (!snapshot.empty) {
-                const doc = snapshot.docs[0];
-                return {
-                    id: doc.id,
-                    ...doc.data()
-                };
-            }
-            return null;
-        } catch (error) {
-            console.error('خطأ في الحصول على استوري المستخدم:', error);
-            return null;
+            console.error('خطأ في الحصول على استوريهاتي:', error);
+            return [];
         }
     }
     
