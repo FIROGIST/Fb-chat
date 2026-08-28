@@ -195,6 +195,19 @@
     color: #fff;
 }
 
+.chat-container.dark-mode .main-tab {
+    color: #888;
+}
+
+.chat-container.dark-mode .main-tab.active {
+    color: #667eea;
+    border-bottom: 3px solid #667eea;
+}
+
+.chat-container.dark-mode .story-list-item:hover {
+    background: #2a2a2a;
+}
+
 /* ============ القائمة الجانبية ============ */
 .sidebar {
     width: 300px;
@@ -252,21 +265,11 @@
 }
 
 @keyframes storyRingSpin {
-    0% {
-        background: conic-gradient(from 0deg, #FFD700, #FFA500, #FFD700, #FFA500, #FFD700);
-    }
-    25% {
-        background: conic-gradient(from 90deg, #FFD700, #FFA500, #FFD700, #FFA500, #FFD700);
-    }
-    50% {
-        background: conic-gradient(from 180deg, #FFD700, #FFA500, #FFD700, #FFA500, #FFD700);
-    }
-    75% {
-        background: conic-gradient(from 270deg, #FFD700, #FFA500, #FFD700, #FFA500, #FFD700);
-    }
-    100% {
-        background: conic-gradient(from 360deg, #FFD700, #FFA500, #FFD700, #FFA500, #FFD700);
-    }
+    0% { background: conic-gradient(from 0deg, #FFD700, #FFA500, #FFD700, #FFA500, #FFD700); }
+    25% { background: conic-gradient(from 90deg, #FFD700, #FFA500, #FFD700, #FFA500, #FFD700); }
+    50% { background: conic-gradient(from 180deg, #FFD700, #FFA500, #FFD700, #FFA500, #FFD700); }
+    75% { background: conic-gradient(from 270deg, #FFD700, #FFA500, #FFD700, #FFA500, #FFD700); }
+    100% { background: conic-gradient(from 360deg, #FFD700, #FFA500, #FFD700, #FFA500, #FFD700); }
 }
 
 /* زر إضافة استوري */
@@ -409,14 +412,8 @@
 }
 
 @keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateY(-15px) scale(0.95);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
+    from { opacity: 0; transform: translateY(-15px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .dropdown-menu button {
@@ -490,6 +487,32 @@
     cursor: not-allowed;
     transform: none;
     box-shadow: none;
+}
+
+/* ============ التبويبات الرئيسية ============ */
+.main-tabs {
+    display: flex;
+    padding: 0 10px;
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+    flex-shrink: 0;
+}
+
+.main-tab {
+    flex: 1;
+    padding: 12px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: #888;
+    font-family: inherit;
+    transition: all 0.3s;
+}
+
+.main-tab.active {
+    color: #667eea;
+    border-bottom: 3px solid #667eea;
 }
 
 /* ============ قائمة المحادثات ============ */
@@ -581,6 +604,51 @@
     align-items: center;
 }
 
+/* ============ قائمة الحالات ============ */
+.stories-list {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    padding: 5px;
+}
+
+.stories-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.stories-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.stories-list::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 10px;
+}
+
+.story-list-item {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.3s;
+    border-radius: 15px;
+    margin-bottom: 5px;
+}
+
+.story-list-item:hover {
+    background: #f0f0f5;
+}
+
+.story-list-item img {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    margin-left: 12px;
+    object-fit: cover;
+    border: 3px solid #FFD700;
+    flex-shrink: 0;
+}
+
 /* ============ حالة الاتصال ============ */
 .status-dot {
     display: inline-block;
@@ -601,15 +669,9 @@
 }
 
 @keyframes pulse {
-    0% {
-        box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.6);
-    }
-    70% {
-        box-shadow: 0 0 0 10px rgba(76, 175, 80, 0);
-    }
-    100% {
-        box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
-    }
+    0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.6); }
+    70% { box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
 }
 
 .partner-status {
@@ -646,21 +708,12 @@
     animation: typingBounce 1.4s infinite;
 }
 
-.typing-dots span:nth-child(2) {
-    animation-delay: 0.2s;
-}
-
-.typing-dots span:nth-child(3) {
-    animation-delay: 0.4s;
-}
+.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
 
 @keyframes typingBounce {
-    0%, 60%, 100% {
-        transform: translateY(0);
-    }
-    30% {
-        transform: translateY(-6px);
-    }
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-6px); }
 }
 
 /* ============ علامة التحقق الذهبية ============ */
@@ -687,15 +740,9 @@
 }
 
 @keyframes goldGlow {
-    0% {
-        box-shadow: 0 0 15px rgba(255, 215, 0, 0.9), 0 0 30px rgba(255, 215, 0, 0.5);
-    }
-    50% {
-        box-shadow: 0 0 20px rgba(255, 215, 0, 1), 0 0 40px rgba(255, 215, 0, 0.7);
-    }
-    100% {
-        box-shadow: 0 0 15px rgba(255, 215, 0, 0.9), 0 0 30px rgba(255, 215, 0, 0.5);
-    }
+    0% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.9), 0 0 30px rgba(255, 215, 0, 0.5); }
+    50% { box-shadow: 0 0 20px rgba(255, 215, 0, 1), 0 0 40px rgba(255, 215, 0, 0.7); }
+    100% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.9), 0 0 30px rgba(255, 215, 0, 0.5); }
 }
 
 /* ============ شارة المطور ============ */
@@ -718,12 +765,8 @@
 }
 
 @keyframes devShine {
-    0% {
-        background-position: 0% center;
-    }
-    100% {
-        background-position: 200% center;
-    }
+    0% { background-position: 0% center; }
+    100% { background-position: 200% center; }
 }
 
 .dev-badge::before {
@@ -738,12 +781,8 @@
 }
 
 @keyframes shineEffect {
-    0% {
-        left: -100%;
-    }
-    100% {
-        left: 100%;
-    }
+    0% { left: -100%; }
+    100% { left: 100%; }
 }
 
 /* ============ علامة البرنسيسه ============ */
@@ -770,15 +809,9 @@
 }
 
 @keyframes silverGlow {
-    0% {
-        box-shadow: 0 0 15px rgba(192, 192, 192, 0.9), 0 0 30px rgba(192, 192, 192, 0.5);
-    }
-    50% {
-        box-shadow: 0 0 20px rgba(192, 192, 192, 1), 0 0 40px rgba(192, 192, 192, 0.7);
-    }
-    100% {
-        box-shadow: 0 0 15px rgba(192, 192, 192, 0.9), 0 0 30px rgba(192, 192, 192, 0.5);
-    }
+    0% { box-shadow: 0 0 15px rgba(192, 192, 192, 0.9), 0 0 30px rgba(192, 192, 192, 0.5); }
+    50% { box-shadow: 0 0 20px rgba(192, 192, 192, 1), 0 0 40px rgba(192, 192, 192, 0.7); }
+    100% { box-shadow: 0 0 15px rgba(192, 192, 192, 0.9), 0 0 30px rgba(192, 192, 192, 0.5); }
 }
 
 /* ============ شارة البرنسيسه الحمراء ============ */
@@ -801,12 +834,8 @@
 }
 
 @keyframes princessShine {
-    0% {
-        background-position: 0% center;
-    }
-    100% {
-        background-position: 200% center;
-    }
+    0% { background-position: 0% center; }
+    100% { background-position: 200% center; }
 }
 
 .princess-badge::before {
@@ -892,14 +921,8 @@
 }
 
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(15px) scale(0.95);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
+    from { opacity: 0; transform: translateY(15px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .message.sent {
@@ -1030,14 +1053,8 @@
     font-size: 12px;
 }
 
-.read-receipt.sent {
-    color: #999;
-}
-
-.read-receipt.delivered {
-    color: #999;
-}
-
+.read-receipt.sent { color: #999; }
+.read-receipt.delivered { color: #999; }
 .read-receipt.read {
     color: #34B7F1;
     text-shadow: 0 0 5px rgba(52, 183, 241, 0.5);
@@ -1118,15 +1135,9 @@
 }
 
 @keyframes voicePulse {
-    0% {
-        box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.6);
-    }
-    70% {
-        box-shadow: 0 0 0 15px rgba(255, 68, 68, 0);
-    }
-    100% {
-        box-shadow: 0 0 0 0 rgba(255, 68, 68, 0);
-    }
+    0% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.6); }
+    70% { box-shadow: 0 0 0 15px rgba(255, 68, 68, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0); }
 }
 
 .attach-btn:disabled, .emoji-btn:disabled, .voice-btn:disabled {
@@ -1167,12 +1178,8 @@
 }
 
 @keyframes recordingBlink {
-    0%, 100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.3;
-    }
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
 }
 
 #recordingTimer {
@@ -1476,6 +1483,24 @@
     background: rgba(255,255,255,0.2);
 }
 
+.delete-story-btn {
+    background: rgba(255,68,68,0.2);
+    border: none;
+    border-radius: 50%;
+    width: 35px;
+    height: 35px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.delete-story-btn:hover {
+    background: rgba(255,68,68,0.4);
+}
+
 .close-story-viewer {
     background: none;
     border: none;
@@ -1685,14 +1710,8 @@
 }
 
 @keyframes fadeInMenu {
-    from {
-        opacity: 0;
-        transform: scale(0.9);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
 }
 
 .context-menu-item {
@@ -1714,30 +1733,12 @@
     padding-right: 25px;
 }
 
-.context-menu-item.reply-item {
-    color: #667eea;
-}
-
-.context-menu-item.reply-item:hover {
-    background: #f0f0ff;
-}
-
-.context-menu-item.edit-item {
-    color: #333;
-}
-
-.context-menu-item.edit-item:hover {
-    background: #f0f0ff;
-    color: #667eea;
-}
-
-.context-menu-item.delete-item {
-    color: #dc3545;
-}
-
-.context-menu-item.delete-item:hover {
-    background: #fff0f0;
-}
+.context-menu-item.reply-item { color: #667eea; }
+.context-menu-item.reply-item:hover { background: #f0f0ff; }
+.context-menu-item.edit-item { color: #333; }
+.context-menu-item.edit-item:hover { background: #f0f0ff; color: #667eea; }
+.context-menu-item.delete-item { color: #dc3545; }
+.context-menu-item.delete-item:hover { background: #fff0f0; }
 
 /* ============ شريط الأدوات للموبايل ============ */
 .mobile-toolbar {
@@ -1756,9 +1757,7 @@
     animation: slideDown 0.3s ease;
 }
 
-.mobile-toolbar.show {
-    display: flex;
-}
+.mobile-toolbar.show { display: flex; }
 
 .toolbar-btn {
     padding: 10px 15px;
@@ -1772,29 +1771,12 @@
     white-space: nowrap;
 }
 
-.toolbar-btn:hover {
-    background: #f0f0f0;
-}
-
-.toolbar-btn.reply {
-    color: #667eea;
-}
-
-.toolbar-btn.delete {
-    color: #dc3545;
-}
-
-.toolbar-btn.delete:hover {
-    background: #fff0f0;
-}
-
-.toolbar-btn.cancel {
-    color: #666;
-}
-
-.toolbar-btn.cancel:hover {
-    background: #f5f5f5;
-}
+.toolbar-btn:hover { background: #f0f0f0; }
+.toolbar-btn.reply { color: #667eea; }
+.toolbar-btn.delete { color: #dc3545; }
+.toolbar-btn.delete:hover { background: #fff0f0; }
+.toolbar-btn.cancel { color: #666; }
+.toolbar-btn.cancel:hover { background: #f5f5f5; }
 
 /* ============ وقت الرسالة ============ */
 .message-time {
@@ -1904,17 +1886,11 @@
     animation: fadeInBg 0.3s;
 }
 
-.edit-modal.show {
-    display: flex;
-}
+.edit-modal.show { display: flex; }
 
 @keyframes fadeInBg {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .edit-modal-content {
@@ -1928,14 +1904,8 @@
 }
 
 @keyframes modalIn {
-    from {
-        transform: translateY(50px) scale(0.9);
-        opacity: 0;
-    }
-    to {
-        transform: translateY(0) scale(1);
-        opacity: 1;
-    }
+    from { transform: translateY(50px) scale(0.9); opacity: 0; }
+    to { transform: translateY(0) scale(1); opacity: 1; }
 }
 
 .edit-modal-content h3 {
@@ -2003,9 +1973,7 @@
     color: #333;
 }
 
-.btn-cancel-edit:hover {
-    background: #e0e0e0;
-}
+.btn-cancel-edit:hover { background: #e0e0e0; }
 
 /* ============ نافذة الشاتات المخفية ============ */
 .hidden-chats-modal {
@@ -2021,10 +1989,7 @@
     z-index: 99999;
 }
 
-.hidden-chats-modal.show {
-    display: flex;
-    animation: fadeInBg 0.3s;
-}
+.hidden-chats-modal.show { display: flex; animation: fadeInBg 0.3s; }
 
 .hidden-chats-content {
     background: white;
@@ -2047,11 +2012,7 @@
     flex-shrink: 0;
 }
 
-.hidden-chats-header h3 {
-    margin: 0;
-    color: #333;
-    font-size: 18px;
-}
+.hidden-chats-header h3 { margin: 0; color: #333; font-size: 18px; }
 
 .close-hidden-btn {
     background: none;
@@ -2069,29 +2030,13 @@
     border-radius: 50%;
 }
 
-.close-hidden-btn:hover {
-    color: #333;
-    background: #f0f0f0;
-}
+.close-hidden-btn:hover { color: #333; background: #f0f0f0; }
 
-.hidden-chats-list {
-    overflow-y: auto;
-    padding: 10px;
-    flex: 1;
-}
+.hidden-chats-list { overflow-y: auto; padding: 10px; flex: 1; }
 
-.hidden-chats-list::-webkit-scrollbar {
-    width: 5px;
-}
-
-.hidden-chats-list::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.hidden-chats-list::-webkit-scrollbar-thumb {
-    background: #ccc;
-    border-radius: 10px;
-}
+.hidden-chats-list::-webkit-scrollbar { width: 5px; }
+.hidden-chats-list::-webkit-scrollbar-track { background: transparent; }
+.hidden-chats-list::-webkit-scrollbar-thumb { background: #ccc; border-radius: 10px; }
 
 .hidden-chat-item {
     display: flex;
@@ -2102,9 +2047,7 @@
     border-radius: 10px;
 }
 
-.hidden-chat-item:hover {
-    background: #f8f9fa;
-}
+.hidden-chat-item:hover { background: #f8f9fa; }
 
 .hidden-chat-item img {
     width: 40px;
@@ -2115,10 +2058,7 @@
     flex-shrink: 0;
 }
 
-.hidden-chat-info {
-    flex: 1;
-    min-width: 0;
-}
+.hidden-chat-info { flex: 1; min-width: 0; }
 
 .hidden-chat-info h4 {
     margin: 0;
@@ -2156,21 +2096,10 @@
     flex-shrink: 0;
 }
 
-.unhide-btn {
-    color: #667eea;
-}
-
-.unhide-btn:hover {
-    background: #f0f0ff;
-}
-
-.delete-chat-btn {
-    color: #dc3545;
-}
-
-.delete-chat-btn:hover {
-    background: #fff0f0;
-}
+.unhide-btn { color: #667eea; }
+.unhide-btn:hover { background: #f0f0ff; }
+.delete-chat-btn { color: #dc3545; }
+.delete-chat-btn:hover { background: #fff0f0; }
 
 /* ============ نافذة الثيمات ============ */
 .theme-modal {
@@ -2186,10 +2115,7 @@
     z-index: 99999;
 }
 
-.theme-modal.show {
-    display: flex;
-    animation: fadeInBg 0.3s;
-}
+.theme-modal.show { display: flex; animation: fadeInBg 0.3s; }
 
 .theme-content {
     background: white;
@@ -2212,11 +2138,7 @@
     flex-shrink: 0;
 }
 
-.theme-header h3 {
-    margin: 0;
-    color: #333;
-    font-size: 18px;
-}
+.theme-header h3 { margin: 0; color: #333; font-size: 18px; }
 
 .close-theme-btn {
     background: none;
@@ -2233,16 +2155,9 @@
     border-radius: 50%;
 }
 
-.close-theme-btn:hover {
-    color: #333;
-    background: #f0f0f0;
-}
+.close-theme-btn:hover { color: #333; background: #f0f0f0; }
 
-.theme-tabs {
-    display: flex;
-    border-bottom: 1px solid #e0e0e0;
-    flex-shrink: 0;
-}
+.theme-tabs { display: flex; border-bottom: 1px solid #e0e0e0; flex-shrink: 0; }
 
 .theme-tab {
     flex: 1;
@@ -2256,29 +2171,13 @@
     font-family: inherit;
 }
 
-.theme-tab.active {
-    color: #667eea;
-    border-bottom: 2px solid #667eea;
-    font-weight: 600;
-}
+.theme-tab.active { color: #667eea; border-bottom: 2px solid #667eea; font-weight: 600; }
 
-.theme-body {
-    padding: 20px;
-    overflow-y: auto;
-    flex: 1;
-}
+.theme-body { padding: 20px; overflow-y: auto; flex: 1; }
 
-.theme-section h4 {
-    margin: 0 0 15px 0;
-    color: #333;
-    font-size: 16px;
-}
+.theme-section h4 { margin: 0 0 15px 0; color: #333; font-size: 16px; }
 
-.font-options {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
+.font-options { display: flex; flex-direction: column; gap: 10px; }
 
 .font-option {
     padding: 12px 15px;
@@ -2291,16 +2190,9 @@
     text-align: right;
 }
 
-.font-option:hover {
-    border-color: #667eea;
-    background: #f0f0ff;
-}
+.font-option:hover { border-color: #667eea; background: #f0f0ff; }
 
-.color-options {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-}
+.color-options { display: flex; flex-wrap: wrap; gap: 10px; }
 
 .color-option {
     width: 50px;
@@ -2311,10 +2203,7 @@
     transition: all 0.3s;
 }
 
-.color-option:hover {
-    transform: scale(1.1);
-    border-color: #667eea;
-}
+.color-option:hover { transform: scale(1.1); border-color: #667eea; }
 
 .theme-footer {
     display: flex;
@@ -2349,270 +2238,69 @@
     transition: all 0.3s;
 }
 
-.btn-save-theme:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 25px rgba(102, 126, 234, 0.6);
-}
+.btn-save-theme:hover { transform: translateY(-2px); box-shadow: 0 5px 25px rgba(102, 126, 234, 0.6); }
 
 /* ============ تنسيقات الموبايل ============ */
 @media (max-width: 768px) {
-    .chat-container {
-        flex-direction: column;
-        height: 100vh;
-    }
-    
-    .sidebar {
-        width: 100%;
-        height: 220px;
-        flex-shrink: 0;
-    }
-    
-    .user-profile {
-        padding: 15px;
-    }
-    
-    .avatar-wrapper img {
-        width: 50px;
-        height: 50px;
-    }
-    
-    .edit-avatar-btn {
-        width: 22px;
-        height: 22px;
-        font-size: 10px;
-        bottom: 5px;
-        left: 5px;
-    }
-    
-    .add-story-btn {
-        width: 18px;
-        height: 18px;
-        font-size: 12px;
-    }
-    
-    .user-profile h3 {
-        font-size: 15px;
-    }
-    
-    .user-profile p {
-        font-size: 11px;
-    }
-    
-    .gold-check {
-        width: 16px;
-        height: 16px;
-        font-size: 10px;
-    }
-    
-    .dev-badge {
-        font-size: 9px;
-        padding: 3px 10px;
-        border-radius: 12px;
-    }
-    
-    .silver-check {
-        width: 16px;
-        height: 16px;
-        font-size: 10px;
-    }
-    
-    .princess-badge {
-        font-size: 9px;
-        padding: 3px 10px;
-        border-radius: 12px;
-    }
-    
-    .search-box {
-        padding: 10px;
-    }
-    
-    .search-box input {
-        padding: 8px 12px;
-        font-size: 12px;
-    }
-    
-    .search-box button {
-        padding: 8px 12px;
-        font-size: 12px;
-    }
-    
-    .chat-item {
-        padding: 10px;
-    }
-    
-    .chat-item img {
-        width: 40px;
-        height: 40px;
-    }
-    
-    .chat-area {
-        flex: 1;
-        min-height: 0;
-        position: relative;
-    }
-    
-    .chat-header {
-        padding: 10px 15px;
-    }
-    
-    .chat-header h3 {
-        font-size: 15px;
-    }
-    
-    .messages {
-        padding: 15px;
-    }
-    
-    .message {
-        max-width: 85%;
-    }
-    
-    .message-content {
-        font-size: 14px;
-        padding: 10px 14px;
-    }
-    
-    .message-image {
-        max-width: 200px;
-    }
-    
-    .mobile-toolbar {
-        top: 10px;
-        left: 50%;
-        transform: translateX(-50%);
-    }
-    
-    .toolbar-btn {
-        padding: 8px 12px;
-        font-size: 13px;
-    }
-    
-    .message-input {
-        padding: 10px;
-        gap: 8px;
-    }
-    
-    .message-input input {
-        padding: 10px 15px;
-        font-size: 14px;
-    }
-    
-    .message-input button {
-        padding: 10px 18px;
-        font-size: 13px;
-    }
-    
-    .attach-btn, .emoji-btn, .voice-btn {
-        width: 40px;
-        height: 40px;
-        font-size: 16px;
-        padding: 8px;
-    }
-    
-    .emoji-picker {
-        width: 280px;
-        right: 10px;
-        bottom: 70px;
-    }
-    
-    .emoji-grid {
-        grid-template-columns: repeat(5, 1fr);
-    }
-    
-    .edit-modal-content {
-        width: 95%;
-        max-width: 350px;
-        padding: 15px;
-    }
-    
-    .edit-modal-content input,
-    .edit-modal-content textarea {
-        font-size: 16px;
-        padding: 12px;
-    }
-    
-    .edit-modal-buttons button {
-        padding: 12px 25px;
-        font-size: 16px;
-    }
-    
-    .hidden-chats-content {
-        width: 95%;
-        max-width: 350px;
-    }
-    
-    .hidden-chats-header h3 {
-        font-size: 16px;
-    }
-    
-    .hidden-chat-item img {
-        width: 35px;
-        height: 35px;
-    }
-    
-    .unhide-btn, .delete-chat-btn {
-        width: 30px;
-        height: 30px;
-        font-size: 16px;
-    }
-    
-    .theme-content {
-        width: 95%;
-        max-height: 70vh;
-    }
-    
-    .theme-tab {
-        font-size: 12px;
-        padding: 10px;
-    }
-    
-    .color-option {
-        width: 40px;
-        height: 40px;
-    }
-    
-    .story-upload-content,
-    .story-viewer-content {
-        width: 95%;
-    }
-    
-    .story-viewer-media img,
-    .story-viewer-media video {
-        max-height: 300px;
-    }
+    .chat-container { flex-direction: column; height: 100vh; }
+    .sidebar { width: 100%; height: 220px; flex-shrink: 0; }
+    .user-profile { padding: 15px; }
+    .avatar-wrapper img { width: 50px; height: 50px; }
+    .edit-avatar-btn { width: 22px; height: 22px; font-size: 10px; bottom: 5px; left: 5px; }
+    .add-story-btn { width: 18px; height: 18px; font-size: 12px; }
+    .user-profile h3 { font-size: 15px; }
+    .user-profile p { font-size: 11px; }
+    .gold-check { width: 16px; height: 16px; font-size: 10px; }
+    .dev-badge { font-size: 9px; padding: 3px 10px; border-radius: 12px; }
+    .silver-check { width: 16px; height: 16px; font-size: 10px; }
+    .princess-badge { font-size: 9px; padding: 3px 10px; border-radius: 12px; }
+    .search-box { padding: 10px; }
+    .search-box input { padding: 8px 12px; font-size: 12px; }
+    .search-box button { padding: 8px 12px; font-size: 12px; }
+    .main-tab { font-size: 12px; padding: 10px; }
+    .chat-item { padding: 10px; }
+    .chat-item img { width: 40px; height: 40px; }
+    .story-list-item img { width: 40px; height: 40px; }
+    .chat-area { flex: 1; min-height: 0; position: relative; }
+    .chat-header { padding: 10px 15px; }
+    .chat-header h3 { font-size: 15px; }
+    .messages { padding: 15px; }
+    .message { max-width: 85%; }
+    .message-content { font-size: 14px; padding: 10px 14px; }
+    .message-image { max-width: 200px; }
+    .mobile-toolbar { top: 10px; left: 50%; transform: translateX(-50%); }
+    .toolbar-btn { padding: 8px 12px; font-size: 13px; }
+    .message-input { padding: 10px; gap: 8px; }
+    .message-input input { padding: 10px 15px; font-size: 14px; }
+    .message-input button { padding: 10px 18px; font-size: 13px; }
+    .attach-btn, .emoji-btn, .voice-btn { width: 40px; height: 40px; font-size: 16px; padding: 8px; }
+    .emoji-picker { width: 280px; right: 10px; bottom: 70px; }
+    .emoji-grid { grid-template-columns: repeat(5, 1fr); }
+    .edit-modal-content { width: 95%; max-width: 350px; padding: 15px; }
+    .edit-modal-content input, .edit-modal-content textarea { font-size: 16px; padding: 12px; }
+    .edit-modal-buttons button { padding: 12px 25px; font-size: 16px; }
+    .hidden-chats-content { width: 95%; max-width: 350px; }
+    .hidden-chats-header h3 { font-size: 16px; }
+    .hidden-chat-item img { width: 35px; height: 35px; }
+    .unhide-btn, .delete-chat-btn { width: 30px; height: 30px; font-size: 16px; }
+    .theme-content { width: 95%; max-height: 70vh; }
+    .theme-tab { font-size: 12px; padding: 10px; }
+    .color-option { width: 40px; height: 40px; }
+    .story-upload-content, .story-viewer-content { width: 95%; }
+    .story-viewer-media img, .story-viewer-media video { max-height: 300px; }
 }
 
 /* للشاشات الصغيرة جداً */
 @media (max-width: 480px) {
-    .sidebar {
-        height: 200px;
-    }
-    
-    .toolbar-btn {
-        padding: 6px 10px;
-        font-size: 12px;
-    }
-    
-    .message-image {
-        max-width: 150px;
-    }
-    
-    .hidden-chats-content {
-        max-height: 70vh;
-    }
+    .sidebar { height: 200px; }
+    .toolbar-btn { padding: 6px 10px; font-size: 12px; }
+    .message-image { max-width: 150px; }
+    .hidden-chats-content { max-height: 70vh; }
 }
 
 /* للشاشات الكبيرة */
 @media (min-width: 1200px) {
-    .sidebar {
-        width: 340px;
-    }
-    
-    .messages {
-        padding: 25px;
-    }
-    
-    .message {
-        max-width: 60%;
-    }
+    .sidebar { width: 340px; }
+    .messages { padding: 25px; }
+    .message { max-width: 60%; }
 }
