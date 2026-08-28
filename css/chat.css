@@ -1522,6 +1522,7 @@
 }
 
 .story-viewer-media {
+    position: relative;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -1541,6 +1542,39 @@
     color: #fff;
     font-size: 14px;
     text-align: center;
+}
+
+/* ============ أزرار التنقل في الاستوري ============ */
+.story-nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255,255,255,0.3);
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    font-size: 20px;
+    color: white;
+    z-index: 10;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.story-nav-btn:hover {
+    background: rgba(255,255,255,0.5);
+    transform: translateY(-50%) scale(1.1);
+}
+
+.story-nav-btn.prev {
+    left: 10px;
+}
+
+.story-nav-btn.next {
+    right: 10px;
 }
 
 /* ============ نافذة المشاهدات ============ */
@@ -2288,6 +2322,7 @@
     .color-option { width: 40px; height: 40px; }
     .story-upload-content, .story-viewer-content { width: 95%; }
     .story-viewer-media img, .story-viewer-media video { max-height: 300px; }
+    .story-nav-btn { width: 35px; height: 35px; font-size: 16px; }
 }
 
 /* للشاشات الصغيرة جداً */
@@ -2296,6 +2331,7 @@
     .toolbar-btn { padding: 6px 10px; font-size: 12px; }
     .message-image { max-width: 150px; }
     .hidden-chats-content { max-height: 70vh; }
+    .story-nav-btn { width: 30px; height: 30px; font-size: 14px; }
 }
 
 /* للشاشات الكبيرة */
