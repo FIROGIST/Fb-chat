@@ -73,7 +73,6 @@ class FirebaseChat {
                 expires_at: expiresAt
             });
             
-            // تحديث حالة الاستوري
             await db.collection('users').doc(this.currentUser.username).update({
                 has_story: true,
                 story_updated_at: firebase.firestore.FieldValue.serverTimestamp()
@@ -83,6 +82,43 @@ class FirebaseChat {
         } catch (error) {
             console.error('خطأ في نشر الاستوري:', error);
             return false;
+        }
+    }
+    
+    // حذف الاستوري
+    async deleteStory(storyId) {
+        try {
+            await db.collection('stories').doc(storyId).delete();
+            
+            await db.collection('users').doc(this.currentUser.username).update({
+                has_story: false
+            });
+            
+            return true;
+        } catch (error) {
+            console.error('خطأ في حذف الاستوري:', error);
+            return false;
+        }
+    }
+    
+    // جلب كل الحالات النشطة
+    async getAllActiveStories() {
+        try {
+            const snapshot = await db.collection('stories')
+                .where('expires_at', '>', new Date())
+                .orderBy('expires_at', 'desc')
+                .limit(20)
+                .get();
+            
+            const stories = [];
+            snapshot.forEach(doc => {
+                stories.push({ id: doc.id, ...doc.data() });
+            });
+            
+            return stories;
+        } catch (error) {
+            console.error('خطأ في جلب الحالات:', error);
+            return [];
         }
     }
     
