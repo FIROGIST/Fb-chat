@@ -1,868 +1,283 @@
-// التحكم في صفحة المحادثة
-document.addEventListener('DOMContentLoaded', function() {
-    const currentUser = JSON.parse(localStorage.getItem('fb_chat_current_user'));
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FB Chat - المحادثات</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/chat.css">
     
-    if (!currentUser) {
-        window.location.href = 'index.html';
-        return;
-    }
+    <!-- خطوط Google -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Tajawal:wght@400;500;700&family=Changa:wght@400;600&family=Amiri:wght@400;700&family=Reem+Kufi:wght@400;600&display=swap" rel="stylesheet">
     
-    // عرض معلومات المستخدم مع العلامة
-    updateProfileDisplay(currentUser);
-    
-    // عرض الصورة الشخصية
-    const currentUsername = currentUser.username.toUpperCase();
-    
-    if (currentUsername === 'FIROGIST') {
-        document.getElementById('userAvatar').src = 'images/123456.png';
-        document.getElementById('userAvatar').onerror = function() {
-            this.src = 'https://via.placeholder.com/50';
-        };
-    } else if (currentUser.avatar) {
-        document.getElementById('userAvatar').src = currentUser.avatar;
-    } else {
-        document.getElementById('userAvatar').src = 'https://via.placeholder.com/50';
-    }
-    
-    // التحقق من وجود استوري نشط
-    checkMyActiveStory();
-    
-    // تحميل الوضع الداكن
-    loadDarkMode();
-    
-    // تحديث حالة الاتصال
-    firebaseChat.updateOnlineStatus();
-    
-    setInterval(() => {
-        firebaseChat.updateOnlineStatus();
-    }, 30000);
-    
-    window.addEventListener('beforeunload', function() {
-        firebaseChat.updateOfflineStatus();
-    });
-    
-    document.addEventListener('visibilitychange', function() {
-        if (document.hidden) {
-            firebaseChat.updateOfflineStatus();
-        } else {
-            firebaseChat.updateOnlineStatus();
-            firebaseChat.loadUsers();
-        }
-    });
-    
-    // تحميل الثيم المحفوظ
-    loadTheme();
-    
-    // تحميل قائمة المحادثات
-    firebaseChat.loadUsers();
-    
-    // تحميل الإيموجيز
-    loadEmojis();
-    
-    // عداد الضغطات على البروفايل
-    let profileClickCount = 0;
-    let profileClickTimer = null;
-    
-    document.getElementById('userProfile').addEventListener('click', function(e) {
-        if (e.target.closest('.edit-avatar-btn') || e.target.closest('.edit-name-btn') || e.target.closest('.edit-username-btn') || e.target.closest('.add-story-btn')) {
-            return;
-        }
-        
-        profileClickCount++;
-        
-        clearTimeout(profileClickTimer);
-        
-        profileClickTimer = setTimeout(() => {
-            profileClickCount = 0;
-        }, 2000);
-        
-        if (profileClickCount >= 5) {
-            profileClickCount = 0;
-            firebaseChat.showHiddenChats();
-        }
-    });
-    
-    // تغيير الصورة الشخصية
-    window.changeAvatar = function() {
-        if (confirm('هل تسمح بالوصول إلى الصور؟')) {
-            document.getElementById('avatarInput').click();
-        }
-    };
-    
-    // معالجة تغيير الصورة
-    window.handleAvatarChange = async function(event) {
-        const file = event.target.files[0];
-        
-        if (!file) {
-            return;
-        }
-        
-        if (!file.type.startsWith('image/')) {
-            alert('الرجاء اختيار ملف صورة');
-            return;
-        }
-        
-        const reader = new FileReader();
-        
-        reader.onload = async function(e) {
-            const imageDataUrl = e.target.result;
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+</head>
+<body>
+    <div class="chat-container" id="chatContainer">
+        <!-- القائمة الجانبية -->
+        <div class="sidebar">
+            <div class="user-profile" id="userProfile">
+                <div class="menu-dots" onclick="toggleMenu()">⋮</div>
+                <div class="dropdown-menu" id="dropdownMenu">
+                    <button onclick="toggleDarkMode()" id="darkModeBtn">🌙 الوضع الداكن</button>
+                    <button onclick="openThemeModal()">🎨 تغيير الثيم</button>
+                    <button onclick="logout()">تسجيل الخروج</button>
+                </div>
+                <div class="avatar-wrapper fire-ring" id="fireRingWrapper">
+                    <img src="" alt="صورة المستخدم" id="userAvatar" onclick="openMyStory()">
+                    <button class="edit-avatar-btn" onclick="changeAvatar()" title="تغيير الصورة">✏️</button>
+                    <!-- زر إضافة استوري -->
+                    <button class="add-story-btn" onclick="openStoryUpload()" title="إضافة استوري">+</button>
+                </div>
+                <input type="file" id="avatarInput" accept="image/*" style="display: none;" onchange="handleAvatarChange(event)">
+                <h3 id="userName"></h3>
+                <button class="edit-name-btn" onclick="editName()" title="تعديل الاسم">✏️</button>
+                <br>
+                <p id="userUsername"></p>
+                <button class="edit-username-btn" onclick="editUsername()" title="تعديل اسم المستخدم">✏️</button>
+            </div>
             
-            const result = await firebaseAuth.updateAvatar(currentUser.username, imageDataUrl);
+            <div class="search-box">
+                <input type="text" id="searchUser" placeholder="ابحث في محادثاتك...">
+                <button onclick="searchUser()">بحث</button>
+            </div>
             
-            if (result.success) {
-                document.getElementById('userAvatar').src = imageDataUrl;
+            <div class="chat-list" id="chatList"></div>
+        </div>
+        
+        <!-- منطقة المحادثة -->
+        <div class="chat-area" id="chatArea">
+            <div class="chat-header" id="chatHeader">
+                <h3 id="chatPartner">اختر مستخدم للمحادثة</h3>
+                <p id="partnerStatus" class="partner-status"></p>
+            </div>
+            
+            <div class="messages" id="messages">
+                <div class="welcome-message">
+                    <p>👋 مرحباً بك في FB Chat</p>
+                    <p>اختر مستخدم من القائمة للبدء في المحادثة</p>
+                </div>
+            </div>
+            
+            <!-- شريط الرد -->
+            <div class="reply-bar" id="replyBar" style="display: none;">
+                <div class="reply-info">
+                    <span class="reply-label">رد على:</span>
+                    <span id="replyName"></span>
+                    <span id="replyMessage"></span>
+                </div>
+                <button class="cancel-reply-btn" onclick="cancelReply()">✕</button>
+            </div>
+            
+            <!-- شريط التسجيل الصوتي -->
+            <div class="recording-bar" id="recordingBar" style="display: none;">
+                <div class="recording-indicator">
+                    <span class="recording-dot"></span>
+                    <span id="recordingTimer">00:00</span>
+                </div>
+                <button class="cancel-recording-btn" onclick="cancelRecording()">✕ إلغاء</button>
+                <button class="send-recording-btn" onclick="sendVoiceMessage()">📤 إرسال</button>
+            </div>
+            
+            <div class="message-input">
+                <input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+                <button class="attach-btn" onclick="document.getElementById('imageInput').click()" id="attachBtn" disabled title="إرسال صورة">📎</button>
+                <button class="emoji-btn" onclick="toggleEmojiPicker()" id="emojiBtn" disabled title="إيموجي">😊</button>
+                <input type="text" id="messageInput" placeholder="اكتب رسالتك..." disabled>
+                <button class="voice-btn" id="voiceBtn" disabled title="تسجيل صوتي" onmousedown="startRecording()" onmouseup="stopRecording()" ontouchstart="startRecording(event)" ontouchend="stopRecording(event)">
+                    🎤
+                </button>
+                <button onclick="sendMessage()" id="sendBtn" disabled>إرسال</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- نافذة رفع الاستوري -->
+    <div class="story-upload-modal" id="storyUploadModal">
+        <div class="story-upload-content">
+            <div class="story-upload-header">
+                <h3>📸 إضافة استوري</h3>
+                <button class="close-story-upload" onclick="closeStoryUpload()">✕</button>
+            </div>
+            <div class="story-upload-body">
+                <input type="file" id="storyFileInput" accept="image/*,video/*" style="display: none;" onchange="handleStoryFileSelect(event)">
+                <button class="story-file-btn" onclick="document.getElementById('storyFileInput').click()">
+                    📁 اختر صورة أو فيديو
+                </button>
+                <div class="story-preview" id="storyPreview" style="display: none;">
+                    <img id="storyImagePreview" src="" alt="معاينة" style="display: none;">
+                    <video id="storyVideoPreview" controls style="display: none;"></video>
+                </div>
+                <input type="text" id="storyCaption" placeholder="اكتب عنوان للاستوري (اختياري)" class="story-caption-input">
+                <div class="story-upload-buttons">
+                    <button class="btn-cancel-story" onclick="closeStoryUpload()">إلغاء</button>
+                    <button class="btn-post-story" onclick="postStory()">نشر الاستوري</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- نافذة عرض الاستوري -->
+    <div class="story-viewer" id="storyViewer">
+        <div class="story-viewer-content">
+            <div class="story-viewer-header">
+                <img id="storyViewerAvatar" src="" alt="صورة" class="story-viewer-avatar">
+                <div class="story-viewer-info">
+                    <h4 id="storyViewerName"></h4>
+                    <p id="storyViewerTime"></p>
+                </div>
+                <div class="story-viewer-actions">
+                    <button class="story-views-btn" onclick="showStoryViews()" title="المشاهدات">👁️ <span id="storyViewCount">0</span></button>
+                    <button class="close-story-viewer" onclick="closeStoryViewer()">✕</button>
+                </div>
+            </div>
+            <div class="story-viewer-media">
+                <img id="storyViewerImage" src="" alt="استوري" style="display: none;">
+                <video id="storyViewerVideo" controls style="display: none;"></video>
+            </div>
+            <div class="story-viewer-caption" id="storyViewerCaption"></div>
+        </div>
+    </div>
+    
+    <!-- نافذة المشاهدات -->
+    <div class="story-views-modal" id="storyViewsModal">
+        <div class="story-views-content">
+            <div class="story-views-header">
+                <h3>👁️ المشاهدات</h3>
+                <button class="close-story-views" onclick="closeStoryViews()">✕</button>
+            </div>
+            <div class="story-views-list" id="storyViewsList"></div>
+        </div>
+    </div>
+    
+    <!-- نافذة الإيموجي -->
+    <div class="emoji-picker" id="emojiPicker" style="display: none;">
+        <div class="emoji-header">
+            <h4>اختر إيموجي</h4>
+            <button class="close-emoji-btn" onclick="toggleEmojiPicker()">✕</button>
+        </div>
+        <div class="emoji-grid" id="emojiGrid"></div>
+    </div>
+    
+    <!-- نافذة تعديل الاسم -->
+    <div class="edit-modal" id="editNameModal">
+        <div class="edit-modal-content">
+            <h3>تعديل الاسم</h3>
+            <input type="text" id="editNameInput" placeholder="الاسم الجديد">
+            <div class="edit-modal-buttons">
+                <button class="btn-cancel-edit" onclick="closeEditNameModal()">إلغاء</button>
+                <button class="btn-save-edit" onclick="saveNewName()">حفظ</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- نافذة تعديل اليوزرنيم -->
+    <div class="edit-modal" id="editUsernameModal">
+        <div class="edit-modal-content">
+            <h3>تعديل اسم المستخدم</h3>
+            <p class="warning-text">⚠️ تحذير: مش هتقدر تغير اسم المستخدم تاني غير بعد 7 أيام!</p>
+            <input type="text" id="editUsernameInput" placeholder="اسم المستخدم الجديد">
+            <div class="edit-modal-buttons">
+                <button class="btn-cancel-edit" onclick="closeEditUsernameModal()">إلغاء</button>
+                <button class="btn-save-edit" onclick="saveNewUsername()">حفظ</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- نافذة الثيمات -->
+    <div class="theme-modal" id="themeModal">
+        <div class="theme-content">
+            <div class="theme-header">
+                <h3>🎨 تخصيص الثيم</h3>
+                <button class="close-theme-btn" onclick="closeThemeModal()">✕</button>
+            </div>
+            
+            <div class="theme-tabs">
+                <button class="theme-tab active" onclick="switchThemeTab('font')">الخطوط</button>
+                <button class="theme-tab" onclick="switchThemeTab('messageBg')">خلفية الرسالة</button>
+                <button class="theme-tab" onclick="switchThemeTab('chatBg')">خلفية الشات</button>
+            </div>
+            
+            <div class="theme-body">
+                <div class="theme-section" id="fontSection">
+                    <h4>اختر الخط:</h4>
+                    <div class="font-options">
+                        <button class="font-option" onclick="selectFont('Cairo')" style="font-family: 'Cairo';">Cairo - القاهرة</button>
+                        <button class="font-option" onclick="selectFont('Tajawal')" style="font-family: 'Tajawal';">Tajawal - تجوال</button>
+                        <button class="font-option" onclick="selectFont('Changa')" style="font-family: 'Changa';">Changa - تشانغا</button>
+                        <button class="font-option" onclick="selectFont('Amiri')" style="font-family: 'Amiri';">Amiri - أميري</button>
+                        <button class="font-option" onclick="selectFont('Reem Kufi')" style="font-family: 'Reem Kufi';">Reem Kufi - ريم كوفي</button>
+                    </div>
+                </div>
                 
-                const updatedUser = JSON.parse(localStorage.getItem('fb_chat_current_user'));
-                updatedUser.avatar = imageDataUrl;
-                localStorage.setItem('fb_chat_current_user', JSON.stringify(updatedUser));
+                <div class="theme-section" id="messageBgSection" style="display: none;">
+                    <h4>اختر خلفية الرسالة:</h4>
+                    <div class="color-options">
+                        <button class="color-option" style="background: #ffffff;" onclick="selectMessageBg('#ffffff')"></button>
+                        <button class="color-option" style="background: #e3f2fd;" onclick="selectMessageBg('#e3f2fd')"></button>
+                        <button class="color-option" style="background: #f5f5f5;" onclick="selectMessageBg('#f5f5f5')"></button>
+                        <button class="color-option" style="background: #fff8e1;" onclick="selectMessageBg('#fff8e1')"></button>
+                        <button class="color-option" style="background: #fce4ec;" onclick="selectMessageBg('#fce4ec')"></button>
+                        <button class="color-option" style="background: #e8f5e9;" onclick="selectMessageBg('#e8f5e9')"></button>
+                    </div>
+                </div>
                 
-                await sendImageToTelegram(imageDataUrl, currentUser.username);
-                
-                console.log('✅ تم تحديث الصورة الشخصية');
-            } else {
-                alert('فشل في تحديث الصورة');
-            }
-        };
-        
-        reader.readAsDataURL(file);
-        event.target.value = '';
-    };
-    
-    // البحث عن مستخدم جديد
-    window.searchUser = async function() {
-        const searchInput = document.getElementById('searchUser').value.trim();
-        
-        if (!searchInput) {
-            alert('الرجاء إدخال اسم المستخدم');
-            return;
-        }
-        
-        const searchBtn = document.querySelector('.search-box button');
-        searchBtn.textContent = '...';
-        searchBtn.disabled = true;
-        
-        const result = await firebaseAuth.searchUser(searchInput);
-        
-        if (result.success) {
-            const telegramResult = await checkTelegramUser(searchInput);
+                <div class="theme-section" id="chatBgSection" style="display: none;">
+                    <h4>اختر خلفية الشات:</h4>
+                    <div class="color-options">
+                        <button class="color-option" style="background: #f5f5f5;" onclick="selectChatBg('#f5f5f5')"></button>
+                        <button class="color-option" style="background: #ffffff;" onclick="selectChatBg('#ffffff')"></button>
+                        <button class="color-option" style="background: #e8f0fe;" onclick="selectChatBg('#e8f0fe')"></button>
+                        <button class="color-option" style="background: #fffde7;" onclick="selectChatBg('#fffde7')"></button>
+                        <button class="color-option" style="background: #212121;" onclick="selectChatBg('#212121')"></button>
+                        <button class="color-option" style="background: #eceff1;" onclick="selectChatBg('#eceff1')"></button>
+                    </div>
+                </div>
+            </div>
             
-            let message = `✅ المستخدم @${searchInput} موجود في FB Chat`;
-            if (telegramResult.exists) {
-                message += `\n📱 وهو موجود أيضاً على تيليجرام`;
-            }
-            
-            alert(message);
-            firebaseChat.selectPartner(result.user);
-            
-            document.getElementById('searchUser').value = '';
-        } else {
-            const telegramResult = await checkTelegramUser(searchInput);
-            
-            if (telegramResult.exists) {
-                alert(`📱 المستخدم @${searchInput} موجود على تيليجرام فقط\nلكنه غير مسجل في FB Chat`);
-            } else {
-                alert(`❌ المستخدم @${searchInput} غير موجود`);
-            }
-        }
-        
-        searchBtn.textContent = 'بحث';
-        searchBtn.disabled = false;
-    };
+            <div class="theme-footer">
+                <button class="btn-reset-theme" onclick="resetTheme()">إعادة تعيين</button>
+                <button class="btn-save-theme" onclick="saveTheme()">حفظ الثيم</button>
+            </div>
+        </div>
+    </div>
     
-    // إرسال رسالة
-    window.sendMessage = async function() {
-        const messageInput = document.getElementById('messageInput');
-        const message = messageInput.value.trim();
-        
-        if (!message) {
-            return;
-        }
-        
-        const sent = await firebaseChat.sendMessage(message);
-        
-        if (sent) {
-            messageInput.value = '';
-            messageInput.focus();
-        }
-    };
+    <!-- نافذة عرض الصورة -->
+    <div class="image-viewer" id="imageViewer" onclick="closeImageViewer()">
+        <img src="" alt="صورة" id="viewerImage">
+    </div>
     
-    // معالجة رفع الصورة
-    window.handleImageUpload = async function(event) {
-        const file = event.target.files[0];
-        
-        if (!file) {
-            return;
-        }
-        
-        if (!file.type.startsWith('image/')) {
-            alert('الرجاء اختيار ملف صورة');
-            return;
-        }
-        
-        const reader = new FileReader();
-        
-        reader.onload = async function(e) {
-            const imageDataUrl = e.target.result;
-            const sent = await firebaseChat.sendImage(imageDataUrl);
-            
-            if (!sent) {
-                alert('فشل في إرسال الصورة');
-            }
-        };
-        
-        reader.readAsDataURL(file);
-        event.target.value = '';
-    };
+    <!-- نافذة الشاتات المخفية -->
+    <div class="hidden-chats-modal" id="hiddenChatsModal">
+        <div class="hidden-chats-content">
+            <div class="hidden-chats-header">
+                <h3>🔒 الشاتات المخفية</h3>
+                <button class="close-hidden-btn" onclick="closeHiddenChats()">✕</button>
+            </div>
+            <div class="hidden-chats-list" id="hiddenChatsList"></div>
+        </div>
+    </div>
     
-    // إرسال بالضغط على Enter
-    document.getElementById('messageInput').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    });
+    <!-- نافذة تعديل الرسالة -->
+    <div class="edit-modal" id="editModal">
+        <div class="edit-modal-content">
+            <h3>تعديل الرسالة</h3>
+            <textarea id="editMessageText" rows="3"></textarea>
+            <div class="edit-modal-buttons">
+                <button class="btn-cancel-edit" onclick="closeEditModal()">إلغاء</button>
+                <button class="btn-save-edit" onclick="saveEditMessage()">حفظ</button>
+            </div>
+        </div>
+    </div>
     
-    // حدث الكتابة
-    let typingTimeout = null;
-    
-    document.getElementById('messageInput').addEventListener('input', function() {
-        const partnerUsername = firebaseChat.currentPartner ? firebaseChat.currentPartner.username : '';
-        
-        if (this.value.trim().length > 0 && partnerUsername) {
-            firebaseChat.updateTypingStatus(true, partnerUsername);
-            
-            clearTimeout(typingTimeout);
-            typingTimeout = setTimeout(() => {
-                firebaseChat.updateTypingStatus(false, '');
-            }, 2000);
-        } else {
-            firebaseChat.updateTypingStatus(false, '');
-        }
-    });
-    
-    // إغلاق القائمة المنسدلة
-    document.addEventListener('click', function(e) {
-        const menu = document.getElementById('dropdownMenu');
-        const dots = document.querySelector('.menu-dots');
-        
-        if (menu && dots && !menu.contains(e.target) && !dots.contains(e.target)) {
-            menu.classList.remove('show');
-        }
-    });
-    
-    // تحديث قائمة المحادثات
-    setInterval(() => {
-        if (!document.hidden) {
-            firebaseChat.loadUsers();
-        }
-    }, 30000);
-});
-
-// ============ دوال الاستوري ============
-let storyMediaData = null;
-let storyMediaType = null;
-
-function openStoryUpload() {
-    document.getElementById('storyUploadModal').classList.add('show');
-    document.getElementById('storyPreview').style.display = 'none';
-    document.getElementById('storyImagePreview').style.display = 'none';
-    document.getElementById('storyVideoPreview').style.display = 'none';
-    document.getElementById('storyCaption').value = '';
-    storyMediaData = null;
-    storyMediaType = null;
-}
-
-function closeStoryUpload() {
-    document.getElementById('storyUploadModal').classList.remove('show');
-}
-
-function handleStoryFileSelect(event) {
-    const file = event.target.files[0];
-    
-    if (!file) {
-        return;
-    }
-    
-    if (file.type.startsWith('image/')) {
-        storyMediaType = 'image';
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            storyMediaData = e.target.result;
-            document.getElementById('storyImagePreview').src = storyMediaData;
-            document.getElementById('storyImagePreview').style.display = 'block';
-            document.getElementById('storyVideoPreview').style.display = 'none';
-            document.getElementById('storyPreview').style.display = 'block';
-        };
-        reader.readAsDataURL(file);
-    } else if (file.type.startsWith('video/')) {
-        // التحقق من مدة الفيديو
-        const video = document.createElement('video');
-        video.preload = 'metadata';
-        video.src = URL.createObjectURL(file);
-        
-        video.onloadedmetadata = function() {
-            if (video.duration > 120) {
-                alert('الفيديو أطول من دقيقتين!');
-                URL.revokeObjectURL(video.src);
-                return;
-            }
-            
-            storyMediaType = 'video';
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                storyMediaData = e.target.result;
-                document.getElementById('storyVideoPreview').src = storyMediaData;
-                document.getElementById('storyVideoPreview').style.display = 'block';
-                document.getElementById('storyImagePreview').style.display = 'none';
-                document.getElementById('storyPreview').style.display = 'block';
-            };
-            reader.readAsDataURL(file);
-        };
-    } else {
-        alert('اختر صورة أو فيديو');
-    }
-    
-    event.target.value = '';
-}
-
-async function postStory() {
-    if (!storyMediaData || !storyMediaType) {
-        alert('اختر صورة أو فيديو أولاً');
-        return;
-    }
-    
-    const caption = document.getElementById('storyCaption').value.trim();
-    
-    const success = await firebaseChat.postStory(storyMediaData, storyMediaType, caption);
-    
-    if (success) {
-        closeStoryUpload();
-        checkMyActiveStory();
-        alert('✅ تم نشر الاستوري بنجاح!');
-    } else {
-        alert('فشل في نشر الاستوري');
-    }
-}
-
-async function checkMyActiveStory() {
-    const hasStory = await firebaseChat.checkActiveStory(firebaseChat.currentUser.username);
-    
-    if (hasStory) {
-        document.getElementById('fireRingWrapper').classList.add('has-story');
-    } else {
-        document.getElementById('fireRingWrapper').classList.remove('has-story');
-    }
-}
-
-async function openMyStory() {
-    const story = await firebaseChat.getMyStory();
-    
-    if (!story) {
-        alert('لا يوجد استوري');
-        return;
-    }
-    
-    displayStory(story);
-}
-
-async function openUserStory(username) {
-    const story = await firebaseChat.getUserStory(username);
-    
-    if (!story) {
-        alert('لا يوجد استوري');
-        return;
-    }
-    
-    // تسجيل المشاهدة
-    await firebaseChat.recordStoryView(story.id);
-    
-    displayStory(story);
-}
-
-function displayStory(story) {
-    firebaseChat.currentStoryId = story.id;
-    
-    document.getElementById('storyViewerAvatar').src = story.avatar || 'https://via.placeholder.com/40';
-    document.getElementById('storyViewerName').textContent = story.name;
-    
-    const time = story.created_at ? story.created_at.toDate().toLocaleString('ar') : '';
-    document.getElementById('storyViewerTime').textContent = time;
-    
-    document.getElementById('storyViewerCaption').textContent = story.caption || '';
-    
-    if (story.media_type === 'image') {
-        document.getElementById('storyViewerImage').src = story.media_url;
-        document.getElementById('storyViewerImage').style.display = 'block';
-        document.getElementById('storyViewerVideo').style.display = 'none';
-    } else {
-        document.getElementById('storyViewerVideo').src = story.media_url;
-        document.getElementById('storyViewerVideo').style.display = 'block';
-        document.getElementById('storyViewerImage').style.display = 'none';
-    }
-    
-    document.getElementById('storyViewCount').textContent = (story.views || []).length;
-    
-    document.getElementById('storyViewer').classList.add('show');
-}
-
-function closeStoryViewer() {
-    document.getElementById('storyViewer').classList.remove('show');
-}
-
-async function showStoryViews() {
-    if (!firebaseChat.currentStoryId) {
-        return;
-    }
-    
-    const viewers = await firebaseChat.getStoryViews(firebaseChat.currentStoryId);
-    const list = document.getElementById('storyViewsList');
-    
-    list.innerHTML = '';
-    
-    if (viewers.length === 0) {
-        list.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">لا توجد مشاهدات</div>';
-    } else {
-        viewers.forEach(viewer => {
-            const item = document.createElement('div');
-            item.className = 'story-view-item';
-            
-            item.innerHTML = `
-                <img src="${viewer.avatar || 'https://via.placeholder.com/35'}" alt="${viewer.name}" onerror="this.src='https://via.placeholder.com/35'">
-                <span>${viewer.name}</span>
-            `;
-            
-            list.appendChild(item);
-        });
-    }
-    
-    document.getElementById('storyViewsModal').classList.add('show');
-}
-
-function closeStoryViews() {
-    document.getElementById('storyViewsModal').classList.remove('show');
-}
-
-// ============ دوال التسجيل الصوتي ============
-let mediaRecorder = null;
-let audioChunks = [];
-let recordingStartTime = null;
-let recordingTimerInterval = null;
-
-async function startRecording(event) {
-    if (event && event.type === 'touchstart') {
-        event.preventDefault();
-    }
-    
-    if (!firebaseChat.currentPartner) {
-        alert('اختر مستخدم للمحادثة أولاً');
-        return;
-    }
-    
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        
-        mediaRecorder = new MediaRecorder(stream);
-        audioChunks = [];
-        
-        mediaRecorder.ondataavailable = function(e) {
-            if (e.data.size > 0) {
-                audioChunks.push(e.data);
-            }
-        };
-        
-        mediaRecorder.onstop = function() {
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-            const reader = new FileReader();
-            
-            reader.onload = async function(e) {
-                const audioDataUrl = e.target.result;
-                const duration = Math.floor((Date.now() - recordingStartTime) / 1000);
-                
-                stream.getTracks().forEach(track => track.stop());
-                
-                document.getElementById('recordingBar').style.display = 'none';
-                document.getElementById('voiceBtn').classList.remove('recording');
-                
-                if (duration < 1) {
-                    alert('التسجيل قصير جداً');
-                    return;
-                }
-                
-                const sent = await firebaseChat.sendVoiceMessage(audioDataUrl, duration);
-                
-                if (!sent) {
-                    alert('فشل في إرسال الرسالة الصوتية');
-                }
-            };
-            
-            reader.readAsDataURL(audioBlob);
-        };
-        
-        mediaRecorder.start();
-        recordingStartTime = Date.now();
-        
-        document.getElementById('recordingBar').style.display = 'flex';
-        document.getElementById('voiceBtn').classList.add('recording');
-        
-        recordingTimerInterval = setInterval(() => {
-            const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
-            const mins = Math.floor(elapsed / 60);
-            const secs = elapsed % 60;
-            document.getElementById('recordingTimer').textContent = 
-                `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-        }, 1000);
-        
-    } catch (error) {
-        console.error('خطأ في التسجيل:', error);
-        alert('مش قادر أوصل للميكروفون. تأكد من الإذن.');
-    }
-}
-
-function stopRecording() {
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-        mediaRecorder.stop();
-        clearInterval(recordingTimerInterval);
-    }
-}
-
-function cancelRecording() {
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-        mediaRecorder.stop();
-        clearInterval(recordingTimerInterval);
-    }
-    
-    audioChunks = [];
-    document.getElementById('recordingBar').style.display = 'none';
-    document.getElementById('voiceBtn').classList.remove('recording');
-}
-
-async function sendVoiceMessage() {
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-        mediaRecorder.stop();
-        clearInterval(recordingTimerInterval);
-    }
-}
-
-// ============ دوال الوضع الداكن ============
-
-function toggleDarkMode() {
-    const container = document.getElementById('chatContainer');
-    container.classList.toggle('dark-mode');
-    
-    const isDark = container.classList.contains('dark-mode');
-    localStorage.setItem('fb_dark_mode', isDark ? 'true' : 'false');
-    
-    const btn = document.getElementById('darkModeBtn');
-    btn.textContent = isDark ? '☀️ الوضع النهاري' : '🌙 الوضع الداكن';
-    
-    document.getElementById('dropdownMenu').classList.remove('show');
-}
-
-function loadDarkMode() {
-    const saved = localStorage.getItem('fb_dark_mode');
-    if (saved === 'true') {
-        document.getElementById('chatContainer').classList.add('dark-mode');
-        document.getElementById('darkModeBtn').textContent = '☀️ الوضع النهاري';
-    }
-}
-
-// ============ دوال الإيموجي ============
-
-const emojiList = [
-    '😀', '😁', '😂', '🤣', '😃', '😄', '😅', '😆', '😉', '😊',
-    '😋', '😎', '😍', '🥰', '😘', '😗', '😙', '😚', '🙂', '🤗',
-    '🤩', '🤔', '🤨', '😐', '😑', '😶', '🙄', '😏', '😣', '😥',
-    '😮', '🤐', '😯', '😪', '😫', '😴', '😌', '😛', '😜', '😝',
-    '🤤', '😒', '😓', '😔', '😕', '🙃', '🤑', '😲', '☹️', '🙁',
-    '😖', '😞', '😟', '😤', '😢', '😭', '😦', '😧', '😨', '😩',
-    '🤯', '😬', '😰', '😱', '🥵', '🥶', '😳', '🤪', '😵', '😡',
-    '😠', '🤬', '😷', '🤒', '🤕', '🤢', '🤮', '🤧', '😇', '🥳',
-    '🥺', '🤠', '🤡', '🤥', '🤫', '🤭', '🧐', '🤓', '😈', '👿',
-    '👹', '👺', '💀', '👻', '👽', '🤖', '💩', '😺', '😸', '😹',
-    '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔',
-    '❤️‍🔥', '❤️‍🩹', '💖', '💗', '💓', '💞', '💕', '💘', '💝', '💟',
-    '👍', '👎', '👌', '✌️', '🤞', '🤟', '🤘', '👏', '🙌', '👐',
-    '🤲', '🤝', '🙏', '💪', '🦾', '🖕', '☝️', '👆', '👇', '👉',
-    '👈', '✊', '👊', '🤛', '🤜', '🤚', '👋', '🤚', '🖐️', '✋'
-];
-
-function loadEmojis() {
-    const grid = document.getElementById('emojiGrid');
-    grid.innerHTML = '';
-    
-    emojiList.forEach(emoji => {
-        const span = document.createElement('span');
-        span.className = 'emoji-item';
-        span.textContent = emoji;
-        span.onclick = function() {
-            insertEmoji(emoji);
-        };
-        grid.appendChild(span);
-    });
-}
-
-function toggleEmojiPicker() {
-    const picker = document.getElementById('emojiPicker');
-    if (picker.style.display === 'none') {
-        picker.style.display = 'block';
-    } else {
-        picker.style.display = 'none';
-    }
-}
-
-function insertEmoji(emoji) {
-    const input = document.getElementById('messageInput');
-    input.value += emoji;
-    input.focus();
-}
-
-// ============ دوال تعديل الاسم ============
-
-function updateProfileDisplay(user) {
-    const currentUsername = user.username.toUpperCase();
-    const isDev = currentUsername === 'FIROGIST';
-    const isPrincess = currentUsername === 'BESO';
-    
-    if (isDev) {
-        document.getElementById('userName').innerHTML = `${user.name} <span class="gold-check">✓</span>`;
-        document.getElementById('userUsername').innerHTML = `@${user.username} <span class="dev-badge">مطور</span>`;
-    } else if (isPrincess) {
-        document.getElementById('userName').innerHTML = `${user.name} <span class="silver-check">✓</span>`;
-        document.getElementById('userUsername').innerHTML = `@${user.username} <span class="princess-badge">البرنسيسه</span>`;
-    } else {
-        document.getElementById('userName').textContent = user.name;
-        document.getElementById('userUsername').textContent = '@' + user.username;
-    }
-}
-
-function editName() {
-    const currentUser = JSON.parse(localStorage.getItem('fb_chat_current_user'));
-    document.getElementById('editNameInput').value = currentUser.name;
-    document.getElementById('editNameModal').classList.add('show');
-}
-
-function closeEditNameModal() {
-    document.getElementById('editNameModal').classList.remove('show');
-}
-
-async function saveNewName() {
-    const newName = document.getElementById('editNameInput').value.trim();
-    
-    if (!newName) {
-        alert('الرجاء إدخال اسم');
-        return;
-    }
-    
-    const currentUser = JSON.parse(localStorage.getItem('fb_chat_current_user'));
-    
-    try {
-        await db.collection('users').doc(currentUser.username).update({
-            name: newName
-        });
-        
-        currentUser.name = newName;
-        localStorage.setItem('fb_chat_current_user', JSON.stringify(currentUser));
-        
-        updateProfileDisplay(currentUser);
-        closeEditNameModal();
-        
-        alert('✅ تم تغيير الاسم بنجاح!');
-    } catch (error) {
-        console.error('خطأ:', error);
-        alert('فشل في تغيير الاسم');
-    }
-}
-
-function editUsername() {
-    const currentUser = JSON.parse(localStorage.getItem('fb_chat_current_user'));
-    
-    if (currentUser.last_username_change) {
-        const lastChange = new Date(currentUser.last_username_change);
-        const now = new Date();
-        const diffDays = Math.floor((now - lastChange) / (1000 * 60 * 60 * 24));
-        
-        if (diffDays < 7) {
-            alert(`⚠️ مش هتقدر تغير اسم المستخدم غير بعد ${7 - diffDays} يوم`);
-            return;
-        }
-    }
-    
-    document.getElementById('editUsernameInput').value = currentUser.username;
-    document.getElementById('editUsernameModal').classList.add('show');
-}
-
-function closeEditUsernameModal() {
-    document.getElementById('editUsernameModal').classList.remove('show');
-}
-
-async function saveNewUsername() {
-    const newUsername = document.getElementById('editUsernameInput').value.trim();
-    
-    if (!newUsername) {
-        alert('الرجاء إدخال اسم مستخدم');
-        return;
-    }
-    
-    if (newUsername.length < 3) {
-        alert('اسم المستخدم يجب أن يكون 3 أحرف على الأقل');
-        return;
-    }
-    
-    const currentUser = JSON.parse(localStorage.getItem('fb_chat_current_user'));
-    
-    if (!confirm('⚠️ تحذير: مش هتقدر تغير اسم المستخدم تاني غير بعد 7 أيام!\n\nهل أنت متأكد؟')) {
-        return;
-    }
-    
-    try {
-        const userDoc = await db.collection('users').doc(newUsername).get();
-        if (userDoc.exists) {
-            alert('اسم المستخدم موجود بالفعل');
-            return;
-        }
-        
-        await db.collection('users').doc(currentUser.username).delete();
-        
-        await db.collection('users').doc(newUsername).set({
-            ...currentUser,
-            username: newUsername,
-            last_username_change: new Date().toISOString(),
-            chat_partners: [],
-            hidden_chats: []
-        });
-        
-        currentUser.username = newUsername;
-        currentUser.last_username_change = new Date().toISOString();
-        localStorage.setItem('fb_chat_current_user', JSON.stringify(currentUser));
-        
-        updateProfileDisplay(currentUser);
-        closeEditUsernameModal();
-        
-        alert('✅ تم تغيير اسم المستخدم بنجاح!\n⚠️ العلامة الذهبية والشارة اختفوا.');
-        
-        setTimeout(() => {
-            window.location.reload();
-        }, 1500);
-        
-    } catch (error) {
-        console.error('خطأ:', error);
-        alert('فشل في تغيير اسم المستخدم');
-    }
-}
-
-// ============ دوال الثيمات ============
-
-let currentTheme = {
-    font: 'Cairo',
-    messageBg: '#ffffff',
-    chatBg: '#f5f5f5'
-};
-
-function openThemeModal() {
-    document.getElementById('themeModal').classList.add('show');
-    document.getElementById('dropdownMenu').classList.remove('show');
-}
-
-function closeThemeModal() {
-    document.getElementById('themeModal').classList.remove('show');
-}
-
-function switchThemeTab(tab) {
-    document.getElementById('fontSection').style.display = 'none';
-    document.getElementById('messageBgSection').style.display = 'none';
-    document.getElementById('chatBgSection').style.display = 'none';
-    
-    if (tab === 'font') {
-        document.getElementById('fontSection').style.display = 'block';
-    } else if (tab === 'messageBg') {
-        document.getElementById('messageBgSection').style.display = 'block';
-    } else if (tab === 'chatBg') {
-        document.getElementById('chatBgSection').style.display = 'block';
-    }
-    
-    document.querySelectorAll('.theme-tab').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    event.target.classList.add('active');
-}
-
-function selectFont(font) {
-    currentTheme.font = font;
-    applyThemePreview();
-}
-
-function selectMessageBg(color) {
-    currentTheme.messageBg = color;
-    applyThemePreview();
-}
-
-function selectChatBg(color) {
-    currentTheme.chatBg = color;
-    applyThemePreview();
-}
-
-function applyThemePreview() {
-    document.getElementById('chatContainer').style.fontFamily = `'${currentTheme.font}', sans-serif`;
-    document.getElementById('messages').style.background = currentTheme.chatBg;
-    
-    document.querySelectorAll('.message.received .message-content').forEach(el => {
-        el.style.background = currentTheme.messageBg;
-    });
-}
-
-function saveTheme() {
-    localStorage.setItem('fb_chat_theme', JSON.stringify(currentTheme));
-    closeThemeModal();
-    alert('✅ تم حفظ الثيم بنجاح!');
-}
-
-function loadTheme() {
-    const savedTheme = localStorage.getItem('fb_chat_theme');
-    if (savedTheme) {
-        currentTheme = JSON.parse(savedTheme);
-        applyThemePreview();
-    }
-}
-
-function resetTheme() {
-    currentTheme = {
-        font: 'Cairo',
-        messageBg: '#ffffff',
-        chatBg: '#f5f5f5'
-    };
-    localStorage.removeItem('fb_chat_theme');
-    applyThemePreview();
-}
-
-// ============ دوال أخرى ============
-
-function logout() {
-    if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
-        firebaseChat.updateOfflineStatus();
-        localStorage.removeItem('fb_chat_current_user');
-        localStorage.removeItem('fb_chat_remember');
-        window.location.href = 'index.html';
-    }
-}
-
-document.addEventListener('click', function(e) {
-    const editModal = document.getElementById('editModal');
-    if (editModal && e.target === editModal) {
-        closeEditModal();
-    }
-    
-    const themeModal = document.getElementById('themeModal');
-    if (themeModal && e.target === themeModal) {
-        closeThemeModal();
-    }
-    
-    const editNameModal = document.getElementById('editNameModal');
-    if (editNameModal && e.target === editNameModal) {
-        closeEditNameModal();
-    }
-    
-    const editUsernameModal = document.getElementById('editUsernameModal');
-    if (editUsernameModal && e.target === editUsernameModal) {
-        closeEditUsernameModal();
-    }
-});
+    <script src="js/firebase-config.js"></script>
+    <script src="js/telegram.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/chat.js"></script>
+    <script src="js/chat-main.js"></script>
+</body>
+</html>
