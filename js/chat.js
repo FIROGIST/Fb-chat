@@ -16,6 +16,9 @@ class FirebaseChat {
         this.developerUsername = 'FIROGIST';
         this.princessUsername = 'beso';
         this.replyingTo = null;
+        this.typingListener = null;
+        this.typingTimeout = null;
+        this.currentStoryId = null;
     }
     
     // التحقق من المطور
@@ -50,6 +53,149 @@ class FirebaseChat {
         return `@${this.escapeHtml(user.username)}`;
     }
     
+    // ============ دوال الاستوري ============
+    
+    // رفع استوري جديد
+    async postStory(mediaDataUrl, mediaType, caption) {
+        try {
+            const expiresAt = new Date();
+            expiresAt.setHours(expiresAt.getHours() + 24);
+            
+            await db.collection('stories').add({
+                username: this.currentUser.username,
+                name: this.currentUser.name,
+                avatar: this.currentUser.avatar || '',
+                media_url: mediaDataUrl,
+                media_type: mediaType,
+                caption: caption || '',
+                views: [],
+                created_at: firebase.firestore.FieldValue.serverTimestamp(),
+                expires_at: expiresAt
+            });
+            
+            // تحديث حالة الاستوري
+            await db.collection('users').doc(this.currentUser.username).update({
+                has_story: true,
+                story_updated_at: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            
+            return true;
+        } catch (error) {
+            console.error('خطأ في نشر الاستوري:', error);
+            return false;
+        }
+    }
+    
+    // الحصول على الاستوري الخاص بي
+    async getMyStory() {
+        try {
+            const snapshot = await db.collection('stories')
+                .where('username', '==', this.currentUser.username)
+                .where('expires_at', '>', new Date())
+                .orderBy('expires_at', 'desc')
+                .limit(1)
+                .get();
+            
+            if (!snapshot.empty) {
+                const doc = snapshot.docs[0];
+                return {
+                    id: doc.id,
+                    ...doc.data()
+                };
+            }
+            return null;
+        } catch (error) {
+            console.error('خطأ في الحصول على الاستوري:', error);
+            return null;
+        }
+    }
+    
+    // الحصول على استوري مستخدم آخر
+    async getUserStory(username) {
+        try {
+            const snapshot = await db.collection('stories')
+                .where('username', '==', username)
+                .where('expires_at', '>', new Date())
+                .orderBy('expires_at', 'desc')
+                .limit(1)
+                .get();
+            
+            if (!snapshot.empty) {
+                const doc = snapshot.docs[0];
+                return {
+                    id: doc.id,
+                    ...doc.data()
+                };
+            }
+            return null;
+        } catch (error) {
+            console.error('خطأ في الحصول على استوري المستخدم:', error);
+            return null;
+        }
+    }
+    
+    // تسجيل مشاهدة
+    async recordStoryView(storyId) {
+        try {
+            const storyRef = db.collection('stories').doc(storyId);
+            const storyDoc = await storyRef.get();
+            
+            if (storyDoc.exists) {
+                const views = storyDoc.data().views || [];
+                
+                if (!views.includes(this.currentUser.username)) {
+                    views.push(this.currentUser.username);
+                    await storyRef.update({
+                        views: views
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('خطأ في تسجيل المشاهدة:', error);
+        }
+    }
+    
+    // الحصول على المشاهدات
+    async getStoryViews(storyId) {
+        try {
+            const storyDoc = await db.collection('stories').doc(storyId).get();
+            
+            if (storyDoc.exists) {
+                const views = storyDoc.data().views || [];
+                const viewers = [];
+                
+                for (const username of views) {
+                    const userDoc = await db.collection('users').doc(username).get();
+                    if (userDoc.exists) {
+                        viewers.push(userDoc.data());
+                    }
+                }
+                
+                return viewers;
+            }
+            return [];
+        } catch (error) {
+            console.error('خطأ في الحصول على المشاهدات:', error);
+            return [];
+        }
+    }
+    
+    // التحقق من وجود استوري نشط
+    async checkActiveStory(username) {
+        try {
+            const snapshot = await db.collection('stories')
+                .where('username', '==', username)
+                .where('expires_at', '>', new Date())
+                .limit(1)
+                .get();
+            
+            return !snapshot.empty;
+        } catch (error) {
+            console.error('خطأ في التحقق من الاستوري:', error);
+            return false;
+        }
+    }
+    
     // تحديث حالة الاتصال
     async updateOnlineStatus() {
         try {
@@ -69,11 +215,58 @@ class FirebaseChat {
             const userRef = db.collection('users').doc(this.currentUser.username);
             await userRef.update({
                 is_online: false,
-                last_seen: firebase.firestore.FieldValue.serverTimestamp()
+                last_seen: firebase.firestore.FieldValue.serverTimestamp(),
+                is_typing: false,
+                typing_to: ''
             });
         } catch (error) {
             console.error('خطأ في تحديث الحالة:', error);
         }
+    }
+    
+    // تحديث حالة الكتابة
+    async updateTypingStatus(isTyping, partnerUsername) {
+        try {
+            const userRef = db.collection('users').doc(this.currentUser.username);
+            await userRef.update({
+                is_typing: isTyping,
+                typing_to: isTyping ? partnerUsername : ''
+            });
+        } catch (error) {
+            console.error('خطأ في تحديث حالة الكتابة:', error);
+        }
+    }
+    
+    // الاستماع لحالة الكتابة
+    listenToTypingStatus(partnerUsername) {
+        if (this.typingListener) {
+            this.typingListener();
+        }
+        
+        this.typingListener = db.collection('users')
+            .doc(partnerUsername)
+            .onSnapshot(snapshot => {
+                if (snapshot.exists) {
+                    const data = snapshot.data();
+                    const statusElement = document.getElementById('partnerStatus');
+                    
+                    if (statusElement) {
+                        if (data.is_typing && data.typing_to === this.currentUser.username) {
+                            statusElement.innerHTML = '<span class="typing-dots"><span>.</span><span>.</span><span>.</span></span> يكتب...';
+                            statusElement.className = 'partner-status typing';
+                        } else if (data.is_online) {
+                            statusElement.innerHTML = '<span class="status-dot online"></span> متصل الآن';
+                            statusElement.className = 'partner-status online';
+                        } else {
+                            const status = this.getUserStatus(partnerUsername);
+                            status.then(result => {
+                                statusElement.innerHTML = `<span class="status-dot offline"></span> ${result.lastSeenText}`;
+                                statusElement.className = 'partner-status';
+                            });
+                        }
+                    }
+                }
+            });
     }
     
     // الحصول على حالة المستخدم
@@ -147,6 +340,7 @@ class FirebaseChat {
         await this.saveChatData();
         
         this.listenToMessages(this.currentChatId);
+        this.listenToTypingStatus(partnerUser.username);
         
         await this.updatePartnerStatus(partnerUser.username);
         await this.markMessagesAsRead(this.currentChatId);
@@ -404,6 +598,7 @@ class FirebaseChat {
                 .add(messageData);
             
             this.cancelReply();
+            await this.updateTypingStatus(false, '');
             
             return true;
         } catch (error) {
@@ -444,6 +639,39 @@ class FirebaseChat {
         }
     }
     
+    // إرسال رسالة صوتية
+    async sendVoiceMessage(audioDataUrl, duration) {
+        if (!this.currentPartner || !audioDataUrl) {
+            return false;
+        }
+        
+        const chatId = this.generateChatId(this.currentUser.username, this.currentPartner.username);
+        
+        try {
+            await db.collection('chats')
+                .doc(chatId)
+                .collection('messages')
+                .add({
+                    type: 'voice',
+                    sender: this.currentUser.username,
+                    sender_name: this.currentUser.name,
+                    receiver: this.currentPartner.username,
+                    receiver_name: this.currentPartner.name,
+                    audio_url: audioDataUrl,
+                    duration: duration,
+                    edited: false,
+                    old_message: '',
+                    read: false,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            
+            return true;
+        } catch (error) {
+            console.error('خطأ في إرسال الرسالة الصوتية:', error);
+            return false;
+        }
+    }
+    
     // عرض رسالة
     displayMessage(messageData) {
         const messagesContainer = document.getElementById('messages');
@@ -479,6 +707,14 @@ class FirebaseChat {
                     <img src="${messageData.image_url}" alt="صورة" loading="lazy">
                 </div>
             `;
+        } else if (messageData.type === 'voice') {
+            const durationText = messageData.duration ? this.formatDuration(messageData.duration) : '';
+            contentHtml = `
+                <div class="voice-message">
+                    <audio controls src="${messageData.audio_url}"></audio>
+                    <div class="voice-duration">${durationText}</div>
+                </div>
+            `;
         } else {
             contentHtml = `<div class="message-content">${this.escapeHtml(messageData.message)}</div>`;
         }
@@ -509,6 +745,13 @@ class FirebaseChat {
         this.addMessageEvents(messageElement, messageData);
         
         messagesContainer.appendChild(messageElement);
+    }
+    
+    // تنسيق المدة
+    formatDuration(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
     }
     
     // إضافة أحداث الرسالة
@@ -572,7 +815,7 @@ class FirebaseChat {
         const replyMessage = document.getElementById('replyMessage');
         
         replyName.textContent = messageData.sender_name + ':';
-        replyMessage.textContent = messageData.type === 'image' ? '📷 صورة' : messageData.message.substring(0, 50);
+        replyMessage.textContent = messageData.type === 'image' ? '📷 صورة' : messageData.type === 'voice' ? '🎤 رسالة صوتية' : messageData.message.substring(0, 50);
         replyBar.style.display = 'flex';
         
         document.getElementById('messageInput').focus();
@@ -600,13 +843,14 @@ class FirebaseChat {
         menu.style.top = e.clientY + 'px';
         
         const isImage = messageData.type === 'image';
-        const messageContent = isImage ? '' : this.escapeHtml(messageData.message);
+        const isVoice = messageData.type === 'voice';
+        const messageContent = isImage ? '' : isVoice ? '🎤 رسالة صوتية' : this.escapeHtml(messageData.message);
         
         menu.innerHTML = `
             <button class="context-menu-item reply-item" onclick="firebaseChat.setReply({message:'${messageContent}', sender_name:'${messageData.sender_name}'}); firebaseChat.closeContextMenu();">
                 ↩️ رد على الرسالة
             </button>
-            ${!isImage ? `
+            ${!isImage && !isVoice ? `
             <button class="context-menu-item edit-item" onclick="firebaseChat.contextEditMessage('${messageData.id}', '${messageContent}')">
                 ✏️ تعديل الرسالة
             </button>
@@ -664,13 +908,14 @@ class FirebaseChat {
         }
         
         const isImage = messageData.type === 'image';
-        const messageContent = isImage ? '📷 صورة' : this.escapeHtml(messageData.message);
+        const isVoice = messageData.type === 'voice';
+        const messageContent = isImage ? '📷 صورة' : isVoice ? '🎤 رسالة صوتية' : this.escapeHtml(messageData.message);
         
         toolbar.innerHTML = `
             <button class="toolbar-btn reply" onclick="firebaseChat.setReply({message:'${messageContent}', sender_name:'${messageData.sender_name}'}); firebaseChat.deselectMessage();">
                 ↩️ رد
             </button>
-            ${!isImage ? `
+            ${!isImage && !isVoice ? `
             <button class="toolbar-btn" onclick="firebaseChat.toolbarEditMessage()">
                 ✏️ تعديل
             </button>
@@ -856,6 +1101,7 @@ class FirebaseChat {
                 if (userDoc.exists) {
                     const user = userDoc.data();
                     const userStatus = await this.getUserStatus(username);
+                    const hasStory = await this.checkActiveStory(username);
                     const chatItem = document.createElement('div');
                     chatItem.className = 'chat-item';
                     chatItem.dataset.username = username;
@@ -865,28 +1111,6 @@ class FirebaseChat {
                         this.showChatContextMenu(e, username);
                     });
                     
-                    chatItem.addEventListener('touchstart', (e) => {
-                        this.isLongPress = false;
-                        clearTimeout(this.longPressTimer);
-                        
-                        this.longPressTimer = setTimeout(() => {
-                            this.isLongPress = true;
-                            this.showChatContextMenu(e, username);
-                            
-                            if (navigator.vibrate) {
-                                navigator.vibrate(50);
-                            }
-                        }, this.longPressDuration);
-                    }, { passive: true });
-                    
-                    chatItem.addEventListener('touchend', () => {
-                        clearTimeout(this.longPressTimer);
-                    }, { passive: true });
-                    
-                    chatItem.addEventListener('touchmove', () => {
-                        clearTimeout(this.longPressTimer);
-                    }, { passive: true });
-                    
                     const avatar = user.avatar || 'https://via.placeholder.com/35';
                     const displayName = this.getDisplayName(user);
                     const displayUsername = this.getDisplayUsername(user);
@@ -894,8 +1118,10 @@ class FirebaseChat {
                         '<span class="status-dot online"></span>' : 
                         '<span class="status-dot offline"></span>';
                     
+                    const storyRing = hasStory ? 'style="border: 3px solid #FFD700;"' : '';
+                    
                     chatItem.innerHTML = `
-                        <img src="${avatar}" alt="${user.name}" onerror="this.src='https://via.placeholder.com/35'">
+                        <img src="${avatar}" alt="${user.name}" ${storyRing} onerror="this.src='https://via.placeholder.com/35'">
                         <div class="chat-item-info">
                             <h4>${displayName}</h4>
                             <p>${displayUsername}</p>
@@ -922,14 +1148,9 @@ class FirebaseChat {
         document.getElementById('sendBtn').disabled = false;
         document.getElementById('attachBtn').disabled = false;
         document.getElementById('emojiBtn').disabled = false;
+        document.getElementById('voiceBtn').disabled = false;
         
         await this.startChat(user);
-        
-        setInterval(async () => {
-            if (this.currentPartner) {
-                await this.updatePartnerStatus(this.currentPartner.username);
-            }
-        }, 30000);
     }
 }
 
