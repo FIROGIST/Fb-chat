@@ -111,13 +111,18 @@ class FirebaseChat {
         try {
             const snapshot = await db.collection('stories')
                 .where('expires_at', '>', new Date())
-                .orderBy('expires_at', 'desc')
-                .limit(50)
                 .get();
             
             const stories = [];
             snapshot.forEach(doc => {
                 stories.push({ id: doc.id, ...doc.data() });
+            });
+            
+            // ترتيب يدوي بدون orderBy
+            stories.sort((a, b) => {
+                const aTime = a.created_at ? a.created_at.toDate().getTime() : 0;
+                const bTime = b.created_at ? b.created_at.toDate().getTime() : 0;
+                return bTime - aTime;
             });
             
             // تجميع الاستوريهات حسب المستخدم
@@ -151,12 +156,18 @@ class FirebaseChat {
             const snapshot = await db.collection('stories')
                 .where('username', '==', username)
                 .where('expires_at', '>', new Date())
-                .orderBy('created_at', 'asc')
                 .get();
             
             const stories = [];
             snapshot.forEach(doc => {
                 stories.push({ id: doc.id, ...doc.data() });
+            });
+            
+            // ترتيب يدوي بدون orderBy
+            stories.sort((a, b) => {
+                const aTime = a.created_at ? a.created_at.toDate().getTime() : 0;
+                const bTime = b.created_at ? b.created_at.toDate().getTime() : 0;
+                return aTime - bTime;
             });
             
             return stories;
