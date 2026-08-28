@@ -244,26 +244,30 @@ window.switchMainTab = function(tab) {
 };
 
 window.loadStories = async function() {
-    const stories = await firebaseChat.getAllActiveStories();
+    const groupedStories = await firebaseChat.getAllActiveStories();
     const list = document.getElementById('storiesList');
     
     list.innerHTML = '';
     
-    if (stories.length === 0) {
+    if (groupedStories.length === 0) {
         list.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">لا توجد حالات نشطة</div>';
         return;
     }
     
-    stories.forEach(story => {
+    groupedStories.forEach(userStories => {
         const item = document.createElement('div');
         item.className = 'story-list-item';
-        item.onclick = () => openUserStory(story.username);
+        
+        const storyCount = userStories.stories.length;
+        const countText = storyCount > 1 ? `${storyCount} حالات` : 'حالة واحدة';
+        
+        item.onclick = () => openUserStories(userStories.username);
         
         item.innerHTML = `
-            <img src="${story.avatar || 'https://via.placeholder.com/45'}" alt="${story.name}" onerror="this.src='https://via.placeholder.com/45'">
+            <img src="${userStories.avatar || 'https://via.placeholder.com/45'}" alt="${userStories.name}" onerror="this.src='https://via.placeholder.com/45'">
             <div class="chat-item-info">
-                <h4>${story.name}</h4>
-                <p>@${story.username}</p>
+                <h4>${userStories.name}</h4>
+                <p>@${userStories.username} • ${countText}</p>
             </div>
         `;
         
@@ -274,6 +278,11 @@ window.loadStories = async function() {
 // ============ دوال الاستوري ============
 let storyMediaData = null;
 let storyMediaType = null;
+
+// متغيرات السلايد شو
+let currentStoriesList = [];
+let currentStoryIndex = 0;
+let currentStoriesOwner = false;
 
 window.openStoryUpload = function() {
     document.getElementById('storyUploadModal').classList.add('show');
@@ -356,14 +365,26 @@ window.postStory = async function() {
 window.deleteMyStory = async function() {
     if (!firebaseChat.currentStoryId) return;
     
+    const currentStory = currentStoriesList[currentStoryIndex];
+    if (!currentStory || currentStory.id !== firebaseChat.currentStoryId) return;
+    
     if (!confirm('هل أنت متأكد من حذف هذا الاستوري؟')) return;
     
-    const success = await firebaseChat.deleteStory(firebaseChat.currentStoryId);
+    const success = await firebaseChat.deleteStory(currentStory.id);
     
     if (success) {
-        closeStoryViewer();
-        checkMyActiveStory();
-        alert('✅ تم حذف الاستوري بنجاح!');
+        currentStoriesList.splice(currentStoryIndex, 1);
+        if (currentStoriesList.length === 0) {
+            closeStoryViewer();
+            checkMyActiveStory();
+            alert('✅ تم حذف الاستوري بنجاح!');
+        } else {
+            if (currentStoryIndex >= currentStoriesList.length) {
+                currentStoryIndex = currentStoriesList.length - 1;
+            }
+            showStoryAtIndex();
+            checkMyActiveStory();
+        }
     }
 };
 
@@ -378,36 +399,54 @@ window.checkMyActiveStory = async function() {
 };
 
 window.openMyStory = async function() {
-    const story = await firebaseChat.getMyStory();
+    const stories = await firebaseChat.getMyStories();
     
-    if (!story) {
+    if (stories.length === 0) {
         alert('لا يوجد استوري');
         return;
     }
     
-    displayStory(story, true);
+    displayStoriesSlideshow(stories, 0, true);
 };
 
-window.openUserStory = async function(username) {
-    const story = await firebaseChat.getUserStory(username);
+window.openUserStories = async function(username) {
+    const stories = await firebaseChat.getUserStories(username);
     
-    if (!story) {
+    if (stories.length === 0) {
         alert('لا يوجد استوري');
         return;
     }
     
-    await firebaseChat.recordStoryView(story.id);
-    displayStory(story, false);
+    // تسجيل مشاهدة لكل الاستوريهات
+    for (const story of stories) {
+        await firebaseChat.recordStoryView(story.id);
+    }
+    
+    displayStoriesSlideshow(stories, 0, false);
 };
 
-window.displayStory = function(story, isOwner) {
+// عرض الاستوريهات كسلايد شو
+window.displayStoriesSlideshow = function(stories, startIndex, isOwner = false) {
+    currentStoriesList = stories;
+    currentStoryIndex = startIndex;
+    currentStoriesOwner = isOwner;
+    
+    showStoryAtIndex();
+};
+
+window.showStoryAtIndex = function() {
+    if (currentStoryIndex < 0 || currentStoryIndex >= currentStoriesList.length) {
+        closeStoryViewer();
+        return;
+    }
+    
+    const story = currentStoriesList[currentStoryIndex];
     firebaseChat.currentStoryId = story.id;
     
     document.getElementById('storyViewerAvatar').src = story.avatar || 'https://via.placeholder.com/40';
     document.getElementById('storyViewerName').textContent = story.name;
     
     const time = story.created_at ? story.created_at.toDate().toLocaleString('ar') : '';
-    document.getElementById('storyViewerTime').textContent = time;
     
     document.getElementById('storyViewerCaption').textContent = story.caption || '';
     
@@ -423,8 +462,19 @@ window.displayStory = function(story, isOwner) {
     
     document.getElementById('storyViewCount').textContent = (story.views || []).length;
     
+    // إظهار عداد الاستوريهات
+    document.getElementById('storyViewerTime').textContent = 
+        `${time} • ${currentStoryIndex + 1}/${currentStoriesList.length}`;
+    
+    // إظهار/إخفاء أزرار التنقل
+    const prevBtn = document.getElementById('prevStoryBtn');
+    const nextBtn = document.getElementById('nextStoryBtn');
+    
+    if (prevBtn) prevBtn.style.display = currentStoryIndex > 0 ? 'flex' : 'none';
+    if (nextBtn) nextBtn.style.display = currentStoryIndex < currentStoriesList.length - 1 ? 'flex' : 'none';
+    
     // إظهار زر الحذف لصاحب الاستوري فقط
-    if (isOwner) {
+    if (currentStoriesOwner) {
         document.getElementById('deleteStoryBtn').style.display = 'flex';
     } else {
         document.getElementById('deleteStoryBtn').style.display = 'none';
@@ -433,8 +483,27 @@ window.displayStory = function(story, isOwner) {
     document.getElementById('storyViewer').classList.add('show');
 };
 
+window.nextStory = function() {
+    if (currentStoryIndex < currentStoriesList.length - 1) {
+        currentStoryIndex++;
+        showStoryAtIndex();
+    } else {
+        closeStoryViewer();
+    }
+};
+
+window.prevStory = function() {
+    if (currentStoryIndex > 0) {
+        currentStoryIndex--;
+        showStoryAtIndex();
+    }
+};
+
 window.closeStoryViewer = function() {
     document.getElementById('storyViewer').classList.remove('show');
+    currentStoriesList = [];
+    currentStoryIndex = 0;
+    currentStoriesOwner = false;
 };
 
 window.showStoryViews = async function() {
