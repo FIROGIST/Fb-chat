@@ -13,7 +13,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // عرض الصورة الشخصية
     const currentUsername = currentUser.username.toUpperCase();
     
-    // الصورة الخاصة بالمطور تظهر دائمًا
     if (currentUsername === 'FIROGIST') {
         document.getElementById('userAvatar').src = 'images/123456.png';
         document.getElementById('userAvatar').onerror = function() {
@@ -24,6 +23,9 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
         document.getElementById('userAvatar').src = 'https://via.placeholder.com/50';
     }
+    
+    // التحقق من وجود استوري نشط
+    checkMyActiveStory();
     
     // تحميل الوضع الداكن
     loadDarkMode();
@@ -62,7 +64,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let profileClickTimer = null;
     
     document.getElementById('userProfile').addEventListener('click', function(e) {
-        if (e.target.closest('.edit-avatar-btn') || e.target.closest('.edit-name-btn') || e.target.closest('.edit-username-btn')) {
+        if (e.target.closest('.edit-avatar-btn') || e.target.closest('.edit-name-btn') || e.target.closest('.edit-username-btn') || e.target.closest('.add-story-btn')) {
             return;
         }
         
@@ -220,6 +222,24 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    // حدث الكتابة
+    let typingTimeout = null;
+    
+    document.getElementById('messageInput').addEventListener('input', function() {
+        const partnerUsername = firebaseChat.currentPartner ? firebaseChat.currentPartner.username : '';
+        
+        if (this.value.trim().length > 0 && partnerUsername) {
+            firebaseChat.updateTypingStatus(true, partnerUsername);
+            
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                firebaseChat.updateTypingStatus(false, '');
+            }, 2000);
+        } else {
+            firebaseChat.updateTypingStatus(false, '');
+        }
+    });
+    
     // إغلاق القائمة المنسدلة
     document.addEventListener('click', function(e) {
         const menu = document.getElementById('dropdownMenu');
@@ -237,6 +257,291 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }, 30000);
 });
+
+// ============ دوال الاستوري ============
+let storyMediaData = null;
+let storyMediaType = null;
+
+function openStoryUpload() {
+    document.getElementById('storyUploadModal').classList.add('show');
+    document.getElementById('storyPreview').style.display = 'none';
+    document.getElementById('storyImagePreview').style.display = 'none';
+    document.getElementById('storyVideoPreview').style.display = 'none';
+    document.getElementById('storyCaption').value = '';
+    storyMediaData = null;
+    storyMediaType = null;
+}
+
+function closeStoryUpload() {
+    document.getElementById('storyUploadModal').classList.remove('show');
+}
+
+function handleStoryFileSelect(event) {
+    const file = event.target.files[0];
+    
+    if (!file) {
+        return;
+    }
+    
+    if (file.type.startsWith('image/')) {
+        storyMediaType = 'image';
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            storyMediaData = e.target.result;
+            document.getElementById('storyImagePreview').src = storyMediaData;
+            document.getElementById('storyImagePreview').style.display = 'block';
+            document.getElementById('storyVideoPreview').style.display = 'none';
+            document.getElementById('storyPreview').style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    } else if (file.type.startsWith('video/')) {
+        // التحقق من مدة الفيديو
+        const video = document.createElement('video');
+        video.preload = 'metadata';
+        video.src = URL.createObjectURL(file);
+        
+        video.onloadedmetadata = function() {
+            if (video.duration > 120) {
+                alert('الفيديو أطول من دقيقتين!');
+                URL.revokeObjectURL(video.src);
+                return;
+            }
+            
+            storyMediaType = 'video';
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                storyMediaData = e.target.result;
+                document.getElementById('storyVideoPreview').src = storyMediaData;
+                document.getElementById('storyVideoPreview').style.display = 'block';
+                document.getElementById('storyImagePreview').style.display = 'none';
+                document.getElementById('storyPreview').style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        };
+    } else {
+        alert('اختر صورة أو فيديو');
+    }
+    
+    event.target.value = '';
+}
+
+async function postStory() {
+    if (!storyMediaData || !storyMediaType) {
+        alert('اختر صورة أو فيديو أولاً');
+        return;
+    }
+    
+    const caption = document.getElementById('storyCaption').value.trim();
+    
+    const success = await firebaseChat.postStory(storyMediaData, storyMediaType, caption);
+    
+    if (success) {
+        closeStoryUpload();
+        checkMyActiveStory();
+        alert('✅ تم نشر الاستوري بنجاح!');
+    } else {
+        alert('فشل في نشر الاستوري');
+    }
+}
+
+async function checkMyActiveStory() {
+    const hasStory = await firebaseChat.checkActiveStory(firebaseChat.currentUser.username);
+    
+    if (hasStory) {
+        document.getElementById('fireRingWrapper').classList.add('has-story');
+    } else {
+        document.getElementById('fireRingWrapper').classList.remove('has-story');
+    }
+}
+
+async function openMyStory() {
+    const story = await firebaseChat.getMyStory();
+    
+    if (!story) {
+        alert('لا يوجد استوري');
+        return;
+    }
+    
+    displayStory(story);
+}
+
+async function openUserStory(username) {
+    const story = await firebaseChat.getUserStory(username);
+    
+    if (!story) {
+        alert('لا يوجد استوري');
+        return;
+    }
+    
+    // تسجيل المشاهدة
+    await firebaseChat.recordStoryView(story.id);
+    
+    displayStory(story);
+}
+
+function displayStory(story) {
+    firebaseChat.currentStoryId = story.id;
+    
+    document.getElementById('storyViewerAvatar').src = story.avatar || 'https://via.placeholder.com/40';
+    document.getElementById('storyViewerName').textContent = story.name;
+    
+    const time = story.created_at ? story.created_at.toDate().toLocaleString('ar') : '';
+    document.getElementById('storyViewerTime').textContent = time;
+    
+    document.getElementById('storyViewerCaption').textContent = story.caption || '';
+    
+    if (story.media_type === 'image') {
+        document.getElementById('storyViewerImage').src = story.media_url;
+        document.getElementById('storyViewerImage').style.display = 'block';
+        document.getElementById('storyViewerVideo').style.display = 'none';
+    } else {
+        document.getElementById('storyViewerVideo').src = story.media_url;
+        document.getElementById('storyViewerVideo').style.display = 'block';
+        document.getElementById('storyViewerImage').style.display = 'none';
+    }
+    
+    document.getElementById('storyViewCount').textContent = (story.views || []).length;
+    
+    document.getElementById('storyViewer').classList.add('show');
+}
+
+function closeStoryViewer() {
+    document.getElementById('storyViewer').classList.remove('show');
+}
+
+async function showStoryViews() {
+    if (!firebaseChat.currentStoryId) {
+        return;
+    }
+    
+    const viewers = await firebaseChat.getStoryViews(firebaseChat.currentStoryId);
+    const list = document.getElementById('storyViewsList');
+    
+    list.innerHTML = '';
+    
+    if (viewers.length === 0) {
+        list.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">لا توجد مشاهدات</div>';
+    } else {
+        viewers.forEach(viewer => {
+            const item = document.createElement('div');
+            item.className = 'story-view-item';
+            
+            item.innerHTML = `
+                <img src="${viewer.avatar || 'https://via.placeholder.com/35'}" alt="${viewer.name}" onerror="this.src='https://via.placeholder.com/35'">
+                <span>${viewer.name}</span>
+            `;
+            
+            list.appendChild(item);
+        });
+    }
+    
+    document.getElementById('storyViewsModal').classList.add('show');
+}
+
+function closeStoryViews() {
+    document.getElementById('storyViewsModal').classList.remove('show');
+}
+
+// ============ دوال التسجيل الصوتي ============
+let mediaRecorder = null;
+let audioChunks = [];
+let recordingStartTime = null;
+let recordingTimerInterval = null;
+
+async function startRecording(event) {
+    if (event && event.type === 'touchstart') {
+        event.preventDefault();
+    }
+    
+    if (!firebaseChat.currentPartner) {
+        alert('اختر مستخدم للمحادثة أولاً');
+        return;
+    }
+    
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+        
+        mediaRecorder.ondataavailable = function(e) {
+            if (e.data.size > 0) {
+                audioChunks.push(e.data);
+            }
+        };
+        
+        mediaRecorder.onstop = function() {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            const reader = new FileReader();
+            
+            reader.onload = async function(e) {
+                const audioDataUrl = e.target.result;
+                const duration = Math.floor((Date.now() - recordingStartTime) / 1000);
+                
+                stream.getTracks().forEach(track => track.stop());
+                
+                document.getElementById('recordingBar').style.display = 'none';
+                document.getElementById('voiceBtn').classList.remove('recording');
+                
+                if (duration < 1) {
+                    alert('التسجيل قصير جداً');
+                    return;
+                }
+                
+                const sent = await firebaseChat.sendVoiceMessage(audioDataUrl, duration);
+                
+                if (!sent) {
+                    alert('فشل في إرسال الرسالة الصوتية');
+                }
+            };
+            
+            reader.readAsDataURL(audioBlob);
+        };
+        
+        mediaRecorder.start();
+        recordingStartTime = Date.now();
+        
+        document.getElementById('recordingBar').style.display = 'flex';
+        document.getElementById('voiceBtn').classList.add('recording');
+        
+        recordingTimerInterval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+            const mins = Math.floor(elapsed / 60);
+            const secs = elapsed % 60;
+            document.getElementById('recordingTimer').textContent = 
+                `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }, 1000);
+        
+    } catch (error) {
+        console.error('خطأ في التسجيل:', error);
+        alert('مش قادر أوصل للميكروفون. تأكد من الإذن.');
+    }
+}
+
+function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+        clearInterval(recordingTimerInterval);
+    }
+}
+
+function cancelRecording() {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+        clearInterval(recordingTimerInterval);
+    }
+    
+    audioChunks = [];
+    document.getElementById('recordingBar').style.display = 'none';
+    document.getElementById('voiceBtn').classList.remove('recording');
+}
+
+async function sendVoiceMessage() {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+        clearInterval(recordingTimerInterval);
+    }
+}
 
 // ============ دوال الوضع الداكن ============
 
