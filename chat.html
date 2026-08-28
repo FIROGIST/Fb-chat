@@ -143,8 +143,14 @@
                 </div>
             </div>
             <div class="story-viewer-media">
+                <!-- زر السابق -->
+                <button class="story-nav-btn prev" onclick="prevStory()" id="prevStoryBtn" style="display: none;">❮</button>
+                
                 <img id="storyViewerImage" src="" alt="استوري" style="display: none;">
                 <video id="storyViewerVideo" controls style="display: none;"></video>
+                
+                <!-- زر التالي -->
+                <button class="story-nav-btn next" onclick="nextStory()" id="nextStoryBtn" style="display: none;">❯</button>
             </div>
             <div class="story-viewer-caption" id="storyViewerCaption"></div>
         </div>
