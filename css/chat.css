@@ -151,6 +151,19 @@
     background: #333;
 }
 
+.chat-container.dark-mode .bottom-nav {
+    background: #1a1a1a;
+    border-top: 1px solid #333;
+}
+
+.chat-container.dark-mode .bottom-nav-btn {
+    color: #888;
+}
+
+.chat-container.dark-mode .bottom-nav-btn.active {
+    color: #fff;
+}
+
 /* ============ القائمة الجانبية ============ */
 .sidebar {
     width: 300px;
@@ -1485,6 +1498,113 @@
     cursor: not-allowed;
 }
 
+/* ============ شريط الإشعارات ============ */
+.notification-bar {
+    position: fixed;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-100px);
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+    padding: 10px 15px;
+    z-index: 999999;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 200px;
+    max-width: 90%;
+    transition: transform 0.4s ease;
+}
+
+.notification-bar.show {
+    transform: translateX(-50%) translateY(0);
+}
+
+.notification-bar img {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #FFD700;
+}
+
+.notification-bar .notification-info {
+    flex: 1;
+}
+
+.notification-bar .notification-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+}
+
+.notification-bar .notification-message {
+    font-size: 11px;
+    color: #888;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+}
+
+/* ============ الشريط السفلي للموبايل ============ */
+.bottom-nav {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border-top: 1px solid #e0e0e0;
+    z-index: 9999;
+}
+
+.bottom-nav-btn {
+    flex: 1;
+    padding: 10px 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    color: #888;
+    font-family: inherit;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    transition: all 0.3s;
+}
+
+.bottom-nav-btn.active {
+    color: #333;
+    font-weight: 600;
+}
+
+.bottom-nav-btn span {
+    font-size: 18px;
+}
+
+/* ============ وضع الشاشة الكاملة للموبايل ============ */
+@media (max-width: 768px) {
+    .chat-container.fullscreen .sidebar {
+        display: none;
+    }
+    
+    .chat-container.fullscreen .chat-area {
+        height: 100vh;
+    }
+    
+    .bottom-nav {
+        display: flex;
+    }
+    
+    .chat-container.fullscreen .bottom-nav {
+        display: none;
+    }
+}
+
 /* ============ تنسيقات الموبايل ============ */
 @media (max-width: 768px) {
     .chat-container { flex-direction: column; height: 100vh; }
@@ -1612,6 +1732,7 @@
     .chat-area { 
         flex: 1; 
         min-height: 0; 
+        padding-bottom: 50px;
     }
     
     .chat-header { 
@@ -1780,6 +1901,14 @@
     }
     
     .emoji-item { 
+        font-size: 15px;
+    }
+    
+    .bottom-nav-btn {
+        font-size: 10px;
+    }
+    
+    .bottom-nav-btn span {
         font-size: 15px;
     }
 }
