@@ -59,6 +59,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // تحميل الإيموجيز
     loadEmojis();
     
+    // إنشاء شريط الإشعارات
+    createNotificationBar();
+    
+    // إنشاء الشريط السفلي للموبايل
+    createBottomNav();
+    
     // عداد الضغطات على البروفايل
     let profileClickCount = 0;
     let profileClickTimer = null;
@@ -233,6 +239,102 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }, 30000);
 });
+
+// ============ إنشاء شريط الإشعارات ============
+function createNotificationBar() {
+    const existingBar = document.getElementById('notificationBar');
+    if (existingBar) return;
+    
+    const bar = document.createElement('div');
+    bar.id = 'notificationBar';
+    bar.className = 'notification-bar';
+    bar.innerHTML = `
+        <img src="" alt="" id="notifAvatar">
+        <div class="notification-info">
+            <div class="notification-name" id="notifName"></div>
+            <div class="notification-message" id="notifMessage"></div>
+        </div>
+    `;
+    bar.addEventListener('click', function() {
+        this.classList.remove('show');
+    });
+    document.body.appendChild(bar);
+}
+
+// ============ عرض شريط الإشعارات ============
+function showNotificationBar(avatar, name, message) {
+    createNotificationBar();
+    
+    const bar = document.getElementById('notificationBar');
+    const notifAvatar = document.getElementById('notifAvatar');
+    const notifName = document.getElementById('notifName');
+    const notifMessage = document.getElementById('notifMessage');
+    
+    notifAvatar.src = avatar || 'https://via.placeholder.com/35';
+    notifName.textContent = name;
+    notifMessage.textContent = message || 'رسالة جديدة';
+    
+    bar.classList.add('show');
+    
+    setTimeout(() => {
+        bar.classList.remove('show');
+    }, 3000);
+}
+
+// ============ إنشاء الشريط السفلي للموبايل ============
+function createBottomNav() {
+    const existingNav = document.getElementById('bottomNav');
+    if (existingNav) return;
+    
+    const nav = document.createElement('div');
+    nav.id = 'bottomNav';
+    nav.className = 'bottom-nav';
+    nav.innerHTML = `
+        <button type="button" class="bottom-nav-btn active" id="bottomChatsBtn" onclick="switchMobileTab('chats')">
+            <span>💬</span>
+            <span>المحادثات</span>
+        </button>
+        <button type="button" class="bottom-nav-btn" id="bottomStoriesBtn" onclick="switchMobileTab('stories')">
+            <span>📸</span>
+            <span>الحالات</span>
+        </button>
+    `;
+    document.body.appendChild(nav);
+}
+
+// ============ تبديل التبويبات من الشريط السفلي ============
+window.switchMobileTab = function(tab) {
+    const container = document.getElementById('chatContainer');
+    container.classList.remove('fullscreen');
+    
+    const bottomChatsBtn = document.getElementById('bottomChatsBtn');
+    const bottomStoriesBtn = document.getElementById('bottomStoriesBtn');
+    
+    if (tab === 'chats') {
+        bottomChatsBtn.classList.add('active');
+        bottomStoriesBtn.classList.remove('active');
+    } else {
+        bottomChatsBtn.classList.remove('active');
+        bottomStoriesBtn.classList.add('active');
+    }
+    
+    switchMainTab(tab);
+};
+
+// ============ تفعيل الشاشة الكاملة ============
+window.enableFullscreen = function() {
+    const container = document.getElementById('chatContainer');
+    if (container) {
+        container.classList.add('fullscreen');
+    }
+};
+
+window.disableFullscreen = function() {
+    const container = document.getElementById('chatContainer');
+    if (container) {
+        container.classList.remove('fullscreen');
+    }
+};
 
 // ============ دوال التبويبات ============
 window.switchMainTab = function(tab) {
