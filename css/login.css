@@ -1,0 +1,214 @@
+.login-box {
+    background: #ffffff;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    width: 400px;
+    max-width: 100%;
+    border: 1px solid #e0e0e0;
+}
+
+.logo {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.logo h1 {
+    color: #000000;
+    font-size: 2.5em;
+    margin-bottom: 10px;
+    font-weight: 700;
+}
+
+.logo p {
+    color: #666666;
+    font-size: 14px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: #333333;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.form-group input[type="text"],
+.form-group input[type="password"],
+.form-group input[type="file"] {
+    width: 100%;
+    padding: 12px 15px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: border-color 0.3s;
+    background: #ffffff;
+    color: #000000;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #333333;
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.08);
+}
+
+.form-group input::placeholder {
+    color: #999999;
+}
+
+.form-group input[type="file"] {
+    padding: 10px;
+    cursor: pointer;
+    color: #666666;
+}
+
+.form-group input[type="file"]::-webkit-file-upload-button {
+    background: #333333;
+    color: #ffffff;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    font-family: inherit;
+    margin-left: 10px;
+    transition: background 0.3s;
+}
+
+.form-group input[type="file"]::-webkit-file-upload-button:hover {
+    background: #000000;
+}
+
+.remember-me {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.remember-me input[type="checkbox"] {
+    width: auto;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid #cccccc;
+    border-radius: 4px;
+    position: relative;
+    transition: all 0.3s;
+    background: #ffffff;
+}
+
+.remember-me input[type="checkbox"]:checked {
+    background: #000000;
+    border-color: #000000;
+}
+
+.remember-me input[type="checkbox"]:checked::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.remember-me label {
+    cursor: pointer;
+    margin: 0;
+    color: #666666;
+    font-size: 14px;
+    user-select: none;
+}
+
+.btn-login, .btn-register {
+    width: 100%;
+    padding: 13px;
+    background: #000000;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-weight: 600;
+}
+
+.btn-login:hover, .btn-register:hover {
+    background: #333333;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+}
+
+.btn-login:disabled, .btn-register:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.register-link {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.register-link p {
+    color: #666666;
+}
+
+.register-link a {
+    color: #000000;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.3s;
+}
+
+.register-link a:hover {
+    text-decoration: underline;
+    color: #333333;
+}
+
+/* تنسيقات الموبايل */
+@media (max-width: 768px) {
+    .login-box {
+        padding: 30px 25px;
+        border-radius: 10px;
+    }
+    
+    .logo h1 {
+        font-size: 2em;
+    }
+    
+    .form-group input[type="text"],
+    .form-group input[type="password"],
+    .form-group input[type="file"] {
+        padding: 11px 14px;
+        font-size: 16px;
+    }
+    
+    .btn-login, .btn-register {
+        padding: 12px;
+        font-size: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .login-box {
+        padding: 25px 20px;
+    }
+    
+    .logo h1 {
+        font-size: 1.8em;
+    }
+    
+    .logo p {
+        font-size: 12px;
+    }
+}
