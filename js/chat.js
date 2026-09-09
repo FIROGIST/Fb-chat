@@ -51,7 +51,6 @@ class FirebaseChat {
             const centerX = rect.left + rect.width / 2;
             const centerY = rect.top + rect.height / 2;
             
-            // إنشاء جزيئات الانفجار
             const emojis = ['❤️', '💖', '💕', '💗', '💓', '💘', '✨', '🎆', '🎇', '💥'];
             
             for (let i = 0; i < 30; i++) {
@@ -83,7 +82,6 @@ class FirebaseChat {
                 }, 1600);
             }
             
-            // اهتزاز الرسالة
             messageElement.style.animation = 'none';
             setTimeout(() => {
                 messageElement.style.animation = 'shake 0.5s ease';
@@ -94,6 +92,17 @@ class FirebaseChat {
             
         } catch (error) {
             console.error('خطأ في تأثير الانفجار:', error);
+        }
+    }
+    
+    // عرض شريط الإشعارات
+    showNotificationBar(avatar, name, message) {
+        try {
+            if (typeof window.showNotificationBar === 'function') {
+                window.showNotificationBar(avatar, name, message);
+            }
+        } catch (error) {
+            console.error('خطأ في عرض الإشعار:', error);
         }
     }
     
@@ -447,6 +456,14 @@ class FirebaseChat {
         await this.markMessagesAsRead(this.currentChatId);
         
         await sendChatNotification(this.currentUser.username, partnerUser.username);
+        
+        // تفعيل الشاشة الكاملة على الموبايل
+        if (window.innerWidth <= 768) {
+            if (typeof window.enableFullscreen === 'function') {
+                window.enableFullscreen();
+            }
+        }
+        
         return this.currentChatId;
     }
     
@@ -649,12 +666,20 @@ class FirebaseChat {
                     messageData.id = doc.id;
                     this.displayMessage(messageData);
                     
-                    // تشغيل صوت لو رسالة جديدة من المستخدم الآخر
+                    // تشغيل صوت وإشعار لو رسالة جديدة من المستخدم الآخر
                     if (currentCount > this.lastMessageCount && 
                         messageData.sender !== this.currentUser.username &&
                         messageData.receiver === this.currentUser.username &&
                         this.lastMessageCount > 0) {
                         this.playNotificationSound();
+                        
+                        // عرض شريط الإشعارات
+                        const messagePreview = messageData.message || '📷 صورة';
+                        this.showNotificationBar(
+                            messageData.sender_avatar || '',
+                            messageData.sender_name,
+                            messagePreview
+                        );
                     }
                 });
                 
@@ -680,6 +705,7 @@ class FirebaseChat {
                 type: 'text',
                 sender: this.currentUser.username,
                 sender_name: this.currentUser.name,
+                sender_avatar: this.currentUser.avatar || '',
                 receiver: this.currentPartner.username,
                 receiver_name: this.currentPartner.name,
                 message: messageText.trim(),
@@ -726,6 +752,7 @@ class FirebaseChat {
                     type: 'image',
                     sender: this.currentUser.username,
                     sender_name: this.currentUser.name,
+                    sender_avatar: this.currentUser.avatar || '',
                     receiver: this.currentPartner.username,
                     receiver_name: this.currentPartner.name,
                     image_url: imageDataUrl,
@@ -757,6 +784,7 @@ class FirebaseChat {
                     type: 'voice',
                     sender: this.currentUser.username,
                     sender_name: this.currentUser.name,
+                    sender_avatar: this.currentUser.avatar || '',
                     receiver: this.currentPartner.username,
                     receiver_name: this.currentPartner.name,
                     audio_url: audioDataUrl,
